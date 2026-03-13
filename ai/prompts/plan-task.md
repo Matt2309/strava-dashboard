@@ -43,7 +43,8 @@ Users must be able to:
 
 ## 3. UI, State, & Tailwind CSS
 - All custom React hooks MUST be placed in the `/hooks` folder. If wrapping oRPC/TanStack queries into custom hooks for reusability, put them here.
-- Use Tailwind CSS for all styling. Follow a mobile-first approach.
+- Use Tailwind CSS for all styling. Follow a mobile-first approach.ù
+- When possible, use shadch/ui components for the UI
 - Build generic, reusable UI components (e.g., `Card`, `MetricBadge`, `SkeletonLoader`) in a `/components/ui` folder.
 
 ## 4. General Code Quality
