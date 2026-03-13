@@ -50,6 +50,7 @@ Users must be able to:
 ## 4. General Code Quality
 - Strictly use `pnpm` for all package management commands.
 - Ensure 100% strict TypeScript compliance (no `any` types).
+- The application must be linted and formatted with Biome.
 - Maintain a strict separation between Domain (business rules/Strava mapping) and Infrastructure (external API calls).
 - Assume all core packages (Next.js, oRPC, TanStack Query, Tailwind) are already installed.
 

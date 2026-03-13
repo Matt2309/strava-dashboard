@@ -1,11 +1,8 @@
 import { os } from "@orpc/server";
-import { router as stravaRouter } from "@/routers/strava";
-import { errorHandlerMiddleware } from "@/routers/middlewares/error-handler";
+import {stravaRouter} from "@/routers/strava";
 
-const baseRouter = os.use(errorHandlerMiddleware);
-
-const appRouter = baseRouter.router({
-  account: stravaRouter,
+export const appRouter = os.router({
+  strava: stravaRouter,
 });
 
-export default appRouter;
+export type AppRouter = typeof appRouter;

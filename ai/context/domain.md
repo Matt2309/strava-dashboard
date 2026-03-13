@@ -1,24 +1,16 @@
-## Domain: endurance training analysis
+# Domain
 
-### Key concepts:
-An application for analyzing Strava workouts that allows 
-users to export reports in JSON format. 
-These reports can be fed into an LLM to receive personalized 
-suggestions (note: the LLM integration itself is outside 
-the scope of this project).
+The domain of this application is the Strava API. The application allows users to connect their Strava account, view their recent activities, and export them to a TOON JSON file.
 
-Activity
-- id
-- type
-- distance
-- moving_time
-- elevation_gain
-- average_heartrate
+## Key Concepts
 
-Derived metrics
-- pace
-- effort score
-- hr zones
+-   **Activity:** A Strava activity, such as a run, ride, or swim.
+-   **TOON:** A JSON-based format for representing activity data.
+-   **OAuth 2.0:** The authentication protocol used to connect to the Strava API.
 
-TOON generation
-- possibility of TOON (Token-Oriented Object Notation) based data derived from Strava API
+## Use Cases
+
+-   As a user, I want to connect my Strava account to the application.
+-   As a user, I want to view a list of my recent activities.
+-   As a user, I want to see detailed information about a specific activity.
+-   As a user, I want to export an activity's data to a TOON JSON file.
