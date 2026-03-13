@@ -6,7 +6,7 @@ Before writing any code, you MUST read and internalize the following project doc
 - `ai/context/architecture.md` (Project Architecture)
 - `ai/context/tech-stack.md` (Tech Stack Constraints)
 - `ai/context/domain.md` (Domain Driven Design Guidelines)
-- `ai/docs/data-model.md` (Database/Data Structures)
+- `ai/docs/data-model.md` (Data Structures)
 - `ai/docs/strava-api-notes.md` (Strava API integration specifics)
 
 # Task
