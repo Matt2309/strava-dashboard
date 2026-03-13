@@ -1,6 +1,11 @@
-Domain: endurance training analysis
+## Domain: endurance training analysis
 
-Key concepts:
+### Key concepts:
+An application for analyzing Strava workouts that allows 
+users to export reports in JSON format. 
+These reports can be fed into an LLM to receive personalized 
+suggestions (note: the LLM integration itself is outside 
+the scope of this project).
 
 Activity
 - id

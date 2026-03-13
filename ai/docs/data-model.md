@@ -1,4 +1,5 @@
 ### Activity
+```
 id: string
 title: string
 date: Date
@@ -11,6 +12,7 @@ pace: number
 calories: number
 device_name: String (ex. Apple watch)
 gear: String (ex. ASICS Novablast 5)
+```
 
 ### TOON example:
 ```

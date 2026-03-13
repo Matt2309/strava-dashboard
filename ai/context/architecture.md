@@ -1,7 +1,7 @@
 Architecture:
 
 Frontend:
-Next.js app router
+Next.js 16 app router with shadcn/ui components
 
 Data access:
 oRPC endpoints
