@@ -4,17 +4,17 @@ import { appRouter } from "@/routers";
 const handler = new RPCHandler(appRouter);
 
 const handleRequest = async (request: Request) => {
-  const { response } = await handler.handle(request, {
-    prefix: "/api/rpc",
-    context: {},
-  });
+	const { response } = await handler.handle(request, {
+		prefix: "/api/rpc",
+		context: {},
+	});
 
-  return (
-    response ??
-    new Response("Not found", {
-      status: 404,
-    })
-  );
+	return (
+		response ??
+		new Response("Not found", {
+			status: 404,
+		})
+	);
 };
 
 export const HEAD = handleRequest;
