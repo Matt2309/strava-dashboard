@@ -1,41 +1,39 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import orpcClient from "@/lib/orpc/client";
+import type { Activity } from "@/lib/types";
 
 // --- getAuthUrl ---
 const authUrlProcedure = orpcClient.strava.getAuthUrl;
 
 export const useGetAuthUrl = () => {
-    return useQuery(authUrlProcedure.queryOptions());
+	return useQuery(authUrlProcedure.queryOptions());
 };
-
 
 // --- getActivities ---
 const activitiesProcedure = orpcClient.strava.getActivities;
-export const useGetActivities = (options) => {
-    return useQuery(
-        activitiesProcedure.queryOptions({
-            ...options,
-        }),
-    );
+export const useGetActivities = (options?: { initialData?: Activity[] }) => {
+	return useQuery(
+		activitiesProcedure.queryOptions({
+			...(options ?? {}),
+		}),
+	);
 };
-
 
 // --- getActivity ---
 const activityProcedure = orpcClient.strava.getActivity;
 export const useGetActivity = (id: string) => {
-    return useQuery(
-        activityProcedure.queryOptions({
-            input: { id },
-            enabled: !!id,
-        }),
-    );
+	return useQuery(
+		activityProcedure.queryOptions({
+			input: { id },
+			enabled: !!id,
+		}),
+	);
 };
-
 
 // --- exportToToon ---
 export const useExportToToon = () => {
-    return useMutation({
-        mutationFn: ({ id }: { id: string }) =>
-            orpcClient.strava.exportToToon.call({ id }),
-    });
+	return useMutation({
+		mutationFn: ({ id }: { id: string }) =>
+			orpcClient.strava.exportToToon.call({ id }),
+	});
 };

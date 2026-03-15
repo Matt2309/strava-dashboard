@@ -6,14 +6,14 @@ import type { ReactNode } from "react";
 import queryClient from "@/lib/query";
 
 type TanstackProviderProps = Readonly<{
-  children: ReactNode;
+	children: ReactNode;
 }>;
 
 export const TanstackProvider = (props: TanstackProviderProps) => {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <ReactQueryDevtools initialIsOpen={false} />
-      {props.children}
-    </QueryClientProvider>
-  );
+	return (
+		<QueryClientProvider client={queryClient}>
+			<ReactQueryDevtools initialIsOpen={false} />
+			{props.children}
+		</QueryClientProvider>
+	);
 };
