@@ -48,6 +48,9 @@ Users must be able to:
 - Build generic, reusable UI components (e.g., `Card`, `MetricBadge`, `SkeletonLoader`) in a `/components/ui` folder.
 
 ## 4. General Code Quality
+- Follow existing architecture
+- Avoid introducing new frameworks
+- Reuse existing utilities
 - Strictly use `pnpm` for all package management commands.
 - Ensure 100% strict TypeScript compliance (no `any` types).
 - The application must be linted and formatted with Biome.
@@ -61,3 +64,19 @@ Please execute this task in the following order:
 3. **Data Fetching Hooks:** Create the custom hooks in `/hooks` that wrap `@orpc/react-query` calls for the Strava dashboard.
 4. **UI Components:** Create the reusable metric cards, layout components, and loading skeletons.
 5. **Integration:** Implement the Next.js pages, integrating the client-side TanStack queries and UI components.
+
+# AI Agent Rules
+
+AI agents must follow these rules:
+
+Allowed actions:
+- modify source code
+- update ai/tasks
+- update ai/memory
+
+Restricted actions:
+- do not modify ai/context files
+- do not change architecture without explicit instruction
+
+Prompt files in ai/prompts can be improved but should not
+be modified automatically without review.

@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@jojojoseph/toon-json-converter':
+        specifier: ^2.0.3
+        version: 2.0.3
       '@orpc/client':
         specifier: ^1.13.7
         version: 1.13.7
@@ -557,6 +560,10 @@ packages:
     peerDependenciesMeta:
       '@types/node':
         optional: true
+
+  '@jojojoseph/toon-json-converter@2.0.3':
+    resolution: {integrity: sha512-XjBrrSV/kkzPx/DLuqsebUfTGYOaKs2MWUXtb0WzGcLVMSMg62W6xAYPJtbqdFjVS8n+tYtadxLx+UYg4RxRZw==}
+    engines: {node: '>=14.0.0'}
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -4360,6 +4367,8 @@ snapshots:
   '@inquirer/type@3.0.10(@types/node@20.19.37)':
     optionalDependencies:
       '@types/node': 20.19.37
+
+  '@jojojoseph/toon-json-converter@2.0.3': {}
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:

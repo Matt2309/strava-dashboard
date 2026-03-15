@@ -1,6 +1,7 @@
-import { z } from "zod";
-import { cookies } from "next/headers";
-import { activitySchema } from "@/lib/types";
+import {z} from "zod";
+import {cookies} from "next/headers";
+import {activitySchema} from "@/lib/types";
+import {jsonToToon} from "@jojojoseph/toon-json-converter";
 
 const STRAVA_API_BASE = "https://www.strava.com/api/v3";
 
@@ -42,9 +43,11 @@ export async function getActivity(id: string) {
   return activitySchema.parse(data);
 }
 
+export async function getRawActivity(id: string) {
+    return await fetchStravaAPI(`activities/${id}`);
+}
+
 export async function exportActivityToToon(id: string) {
-  const activity = await getActivity(id);
-  // A real implementation would convert the activity to TOON format.
-  // For now, we'll just return the JSON as a string.
-  return JSON.stringify(activity, null, 2);
+  const activity = await getRawActivity(id);
+  return jsonToToon(activity);
 }

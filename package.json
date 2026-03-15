@@ -10,6 +10,7 @@
     "format": "biome format --write"
   },
   "dependencies": {
+    "@jojojoseph/toon-json-converter": "^2.0.3",
     "@orpc/client": "^1.13.7",
     "@orpc/server": "^1.13.7",
     "@orpc/tanstack-query": "^1.13.7",
