@@ -39,7 +39,7 @@ export default function RootLayout({
 					disableTransitionOnChange
 				>
 					<ErrorBoundary>
-						<div className="flex justify-end p-4">
+						<div className="flex fixed top-4 right-4">
 							<ThemeToggle />
 						</div>
 						<Providers>{children}</Providers>
