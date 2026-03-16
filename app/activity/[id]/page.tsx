@@ -15,7 +15,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/use-toast";
 // Import your new hooks here (adjust the path based on your folder structure)
@@ -203,17 +203,22 @@ export default function ActivityPage() {
 				</Card>
 				<Card>
 					<CardHeader>
-						<CardTitle>Device & Gear</CardTitle>
+						<CardTitle>Gear info</CardTitle>
 					</CardHeader>
 					<CardContent>
+                        <CardDescription>Device</CardDescription>
 						<p>
-							<strong>Device:</strong> {activity.device_name}
+							{activity.device_name}
 						</p>
-						{activity.gear_id && (
-							<p>
-								<strong>Gear:</strong> {activity.gear_id}
-							</p>
-						)}
+                        <CardDescription>Gear</CardDescription>
+                        <p>
+                            {activity.gear && (
+                                `${activity.gear?.name} -`
+                            )}
+                            {activity.gear && (
+                                ` ${activity.gear?.converted_distance} km`
+                            )}
+                        </p>
 					</CardContent>
 				</Card>
 			</div>
