@@ -31,7 +31,7 @@ export default async function Home() {
 				<div className="flex h-[80vh] items-center justify-center">
 					<Card className="w-full max-w-sm">
 						<CardHeader>
-							<CardTitle>
+							<CardTitle className={'text-center'}>
 								{authError ? "Reconnect to Strava" : "Connect to Strava"}
 							</CardTitle>
 						</CardHeader>
