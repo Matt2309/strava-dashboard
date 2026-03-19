@@ -1,16 +1,25 @@
 import { ConnectStrava } from "@/components/ConnectStrava";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Activity } from "@/lib/types";
-import { getActivities } from "@/services/strava";
+import { getActivities, StravaAPIError } from "@/services/strava";
 import { ActivityList } from "./ActivityList";
 
-export default async function Home() {
-	let initialActivities: Activity[] = [];
+async function fetchInitialData(): Promise<{ activities: Activity[]; authError: boolean }> {
 	try {
-		initialActivities = await getActivities();
+		const activities = await getActivities();
+		return { activities, authError: false };
 	} catch (error) {
+		if (error instanceof StravaAPIError && error.statusCode === 401) {
+			return { activities: [], authError: true };
+		}
 		console.error("Failed to fetch initial activities:", error);
+		return { activities: [], authError: false };
 	}
+}
+
+export default async function Home() {
+	const { activities, authError } = await fetchInitialData();
+	const showConnect = activities.length === 0 || authError;
 
 	return (
 		<div className="p-4">
@@ -18,22 +27,26 @@ export default async function Home() {
 				<h1 className="text-2xl font-bold">Strava Dashboard</h1>
 			</header>
 
-			{initialActivities.length === 0 ? (
+			{showConnect ? (
 				<div className="flex h-[80vh] items-center justify-center">
 					<Card className="w-full max-w-sm">
 						<CardHeader>
-							<CardTitle>Connect to Strava</CardTitle>
+							<CardTitle>
+								{authError ? "Reconnect to Strava" : "Connect to Strava"}
+							</CardTitle>
 						</CardHeader>
 						<CardContent className="flex flex-col items-center justify-center p-6">
 							<p className="mb-4 text-center">
-								To see your activities, you need to connect your Strava account.
+								{authError
+									? "Your Strava authentication has expired or is invalid. Please reconnect to continue."
+									: "To see your activities, you need to connect your Strava account."}
 							</p>
 							<ConnectStrava />
 						</CardContent>
 					</Card>
 				</div>
 			) : (
-				<ActivityList initialActivities={initialActivities} />
+				<ActivityList initialActivities={activities} />
 			)}
 		</div>
 	);

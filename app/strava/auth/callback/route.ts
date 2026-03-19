@@ -6,10 +6,17 @@ import { env } from "@/lib/env";
 export async function GET(req: NextRequest) {
 	const searchParams = req.nextUrl.searchParams;
 	const code = searchParams.get("code");
+	const error = searchParams.get("error");
+	const errorDescription = searchParams.get("error_description");
+
+	// Handle OAuth errors from Strava
+	if (error) {
+		console.error(`OAuth error: ${error} - ${errorDescription}`);
+		return redirect(`/?auth_error=${encodeURIComponent(error)}`);
+	}
 
 	if (!code) {
-		// Handle error
-		redirect("/");
+		return redirect("/?auth_error=missing_code");
 	}
 
 	const response = await fetch("https://www.strava.com/oauth/token", {
@@ -27,23 +34,26 @@ export async function GET(req: NextRequest) {
 
 	const data = await response.json();
 
-	if (data.access_token) {
-		// Await the cookies() Promise here
-		const cookieStore = await cookies();
-
-		cookieStore.set("strava_access_token", data.access_token, {
-			httpOnly: true,
-			secure: process.env.NODE_ENV === "production",
-			sameSite: "lax",
-			expires: new Date(data.expires_at * 1000),
-		});
-
-		cookieStore.set("strava_refresh_token", data.refresh_token, {
-			httpOnly: true,
-			secure: process.env.NODE_ENV === "production",
-			sameSite: "lax",
-		});
+	// Check for token response errors
+	if (!response.ok || !data.access_token) {
+		console.error("Token redemption failed:", data);
+		return redirect("/?auth_error=token_failed");
 	}
 
-	redirect("/");
+	const cookieStore = await cookies();
+
+	cookieStore.set("strava_access_token", data.access_token, {
+		httpOnly: true,
+		secure: process.env.NODE_ENV === "production",
+		sameSite: "lax",
+		expires: new Date(data.expires_at * 1000),
+	});
+
+	cookieStore.set("strava_refresh_token", data.refresh_token, {
+		httpOnly: true,
+		secure: process.env.NODE_ENV === "production",
+		sameSite: "lax",
+	});
+
+	return redirect("/");
 }

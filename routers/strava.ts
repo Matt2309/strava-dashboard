@@ -2,6 +2,7 @@ import { os } from "@orpc/server";
 import { z } from "zod";
 import { env } from "@/lib/env";
 import * as strava from "@/services";
+import { errorHandlerMiddleware } from "@/routers/middlewares/error-handler";
 
 export const getAuthUrl = os
 	.handler(() => {
@@ -14,12 +15,14 @@ export const getAuthUrl = os
 		});
 		return `https://www.strava.com/oauth/authorize?${params.toString()}`;
 	})
+	.use(errorHandlerMiddleware)
 	.callable();
 
 export const getActivities = os
 	.handler(async () => {
 		return await strava.getActivities();
 	})
+	.use(errorHandlerMiddleware)
 	.callable();
 
 export const getActivity = os
@@ -31,6 +34,7 @@ export const getActivity = os
 	.handler(async ({ input }) => {
 		return await strava.getActivity(input.id);
 	})
+	.use(errorHandlerMiddleware)
 	.callable();
 
 export const exportToToon = os
@@ -42,6 +46,7 @@ export const exportToToon = os
 	.handler(async ({ input }) => {
 		return await strava.exportActivityToToon(input.id);
 	})
+	.use(errorHandlerMiddleware)
 	.callable();
 
 export const stravaRouter = os.router({
