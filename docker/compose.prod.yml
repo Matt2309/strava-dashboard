@@ -1,0 +1,39 @@
+services:
+  dromos:
+    image: dromos:prod
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile.prod
+      platforms: [linux/amd64]
+    container_name: dromos
+    ports:
+      - '3000:3000'
+    environment:
+      # Runtime secrets should be environment variables, NOT build args
+      # Load these from .env.production.local or secrets management system
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+      # Database and OAuth secrets - use docker secrets in production swarm
+      # or mount from secure source (AWS Secrets Manager, HashiCorp Vault, etc.)
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    networks:
+      - dromos-network-prod
+    restart: unless-stopped
+    # Optional: set resource limits to prevent resource exhaustion
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+networks:
+  dromos-network-prod:
+    driver: bridge

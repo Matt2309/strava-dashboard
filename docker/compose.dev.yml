@@ -1,0 +1,48 @@
+services:
+  dromos:
+    image: dromos:dev
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile.dev
+      args:
+        - NODE_VERSION=${NODE_VERSION:-22}
+    container_name: dromos-dev
+    restart: unless-stopped
+    ports:
+      - ${FRONTEND_PORT:-3000}:3000
+    environment:
+      # Development environment variables
+      - NODE_ENV=development
+      - NEXT_TELEMETRY_DISABLED=1
+      # Optional: load from .env.local if present
+      # - DATABASE_URL=${DATABASE_URL}
+      # - STRAVA_CLIENT_ID=${STRAVA_CLIENT_ID}
+      # - STRAVA_CLIENT_SECRET=${STRAVA_CLIENT_SECRET}
+    volumes:
+      # Mount entire project directory for hot-reload (except node_modules)
+      - ../:/app
+      # Anonymous volume prevents host node_modules from overwriting container's
+      # This is critical because native bindings are OS-specific
+      - /app/node_modules
+      # Optional: mount .next separately to improve performance
+      # - /app/.next
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    networks:
+      - dromos-network-dev
+    # Show logs with timestamps for better debugging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=dromos"
+
+networks:
+  dromos-network-dev:
+    driver: bridge
+    name: dromos-network-dev

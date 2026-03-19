@@ -1,0 +1,41 @@
+ARG NODE_VERSION=22
+
+FROM node:${NODE_VERSION}-alpine
+
+# Install development dependencies
+# - bash: useful for scripts, debugging, and interactive shells
+# - openssl3: required by Prisma for secure (SSL/TLS) database connections
+# - libc6-compat: needed by binary dependencies on musl/Alpine systems
+
+RUN apk add --no-cache bash openssl3 libc6-compat
+
+# Enable Corepack globally to manage pnpm without manual installation
+RUN npm install -g corepack@latest && corepack enable
+
+WORKDIR /app
+
+# Copy package manager configuration and lock files
+COPY package.json pnpm-lock.yaml* .npmrc* ./
+
+# Install dependencies from lockfile for reproducible builds
+# Development install includes devDependencies needed for building
+RUN pnpm install --frozen-lockfile
+
+# Copy Prisma schema if it exists and generate the client
+# This is needed even in dev for type hints and the Prisma Client
+COPY prisma ./prisma
+
+RUN if [ -d prisma ]; then \
+      npx prisma generate; \
+    fi
+
+# Set environment variables for development
+ENV NODE_ENV=development
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Expose Next.js default port (docker-compose will map it)
+EXPOSE 3000
+
+# Run Next.js development server with hot-reload support
+# Docker Compose volumes will enable file watching and HMR
+CMD ["pnpm", "dev"]

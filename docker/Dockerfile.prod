@@ -1,0 +1,105 @@
+ARG NODE_VERSION=22
+
+# ============================================================================
+# Base Stage: Common setup for all subsequent stages
+# ============================================================================
+FROM node:${NODE_VERSION}-alpine AS base
+
+# Install essential dependencies for Next.js and Prisma
+# - bash: useful for scripts and debugging
+# - openssl3: required by Prisma for secure (SSL/TLS) database connections (use v3 for Alpine 22)
+# - libc6-compat: needed by binary dependencies on musl/Alpine systems
+
+RUN apk add --no-cache bash openssl3 libc6-compat
+
+# Enable Corepack globally (once per base, not redundantly in each stage)
+RUN npm install -g corepack@latest && corepack enable
+
+WORKDIR /app
+
+# ============================================================================
+# Dependencies Stage: Install dependencies with layer caching
+# ============================================================================
+FROM base AS deps
+
+# Copy only package manager files first to maximize Docker layer cache
+# Separating this from source code means dependency changes don't invalidate the cache
+COPY package.json pnpm-lock.yaml* .npmrc* ./
+
+# Install dependencies with frozen lockfile for reproducible builds
+# --prod would be used here if we weren't using standalone output
+RUN pnpm install --frozen-lockfile
+
+# ============================================================================
+# Builder Stage: Build the Next.js application
+# ============================================================================
+FROM base AS builder
+
+# Set build-time environment variables
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+
+# Copy source code (now that dependencies are cached, this is separate)
+COPY . .
+
+# Copy Prisma schema and pre-generated client (if they exist)
+# Prisma client should ideally be generated locally before Docker build to avoid
+# Node version compatibility issues. However, we make it optional here.
+# If Prisma is used but client doesn't exist, generation will be attempted.
+# IMPORTANT: For best results, run this locally before building:
+#   npx prisma generate
+RUN if [ -d prisma ] && [ ! -d lib/generated/prisma ]; then \
+      echo "⚠️  Prisma client not found. Attempting to generate..."; \
+      npx prisma generate || echo "⚠️  Prisma generation failed. If you use Prisma, generate locally with: npx prisma generate"; \
+    fi
+
+# Build Next.js application
+# With output: 'standalone' in next.config.ts, this creates an optimized .next/standalone
+# Provide dummy environment variables if they don't exist (needed for build-time validation)
+RUN STRAVA_CLIENT_ID=${STRAVA_CLIENT_ID:-dummy_build_value} \
+    STRAVA_CLIENT_SECRET=${STRAVA_CLIENT_SECRET:-dummy_build_value} \
+    STRAVA_REDIRECT_URI=${STRAVA_REDIRECT_URI:-http://localhost:3000/strava/auth/callback} \
+    pnpm build
+
+# ============================================================================
+# Runner Stage: Minimal production image
+# ============================================================================
+FROM node:${NODE_VERSION}-alpine AS runner
+
+# Set runtime environment variables
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Security: Create a non-root user to run the application
+# Prevents privilege escalation attacks
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+WORKDIR /app
+
+# Copy only the minimal necessary files from builder stage
+# .next/standalone contains the complete app with dependencies tree optimized
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Copy public directory if it exists (optional for projects without static assets)
+RUN if [ -d /app/public ]; then \
+      cp -r /app/public ./public; \
+      chown -R nextjs:nodejs ./public; \
+    fi
+
+# Switch to non-root user before running the app
+USER nextjs
+
+# Health check: allows orchestrators to detect when the app is ready
+# Adjust timeout based on your app's startup time
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:3000', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+
+# Start the application
+# Use node server.js directly (from standalone) instead of npm start
+# This reduces memory overhead and improves startup time
+CMD ["node", "server.js"]
