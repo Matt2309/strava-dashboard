@@ -11,8 +11,15 @@
 		"docker:build": "docker compose -f docker/compose.prod.yml --env-file .env.local build",
 		"docker:dev": "docker compose -f docker/compose.dev.yml --env-file .env.local up --build --remove-orphans",
 		"docker:inspect": "docker inspect dromos:prod --format='{{.Os}}/{{.Architecture}}'",
-		"docker:prod": "docker run --env-file .env.production.local -p 3000:3000 dromos:prod"
-	},
+		"docker:prod": "docker run --env-file .env.production.local -p 3000:3000 dromos:prod",
+        "db:format": "npx dotenv-cli -e .env.local -- npx prisma format",
+        "db:generate": "npx dotenv-cli -e .env.local -- npx prisma generate",
+        "db:migrate:deploy": "npx dotenv-cli -e .env.local -- npx prisma migrate deploy",
+        "db:migrate:dev": "npx dotenv-cli -e .env.local -- npx prisma migrate dev",
+        "db:push": "npx dotenv-cli -e .env.local -- npx prisma db push",
+        "db:reset": "npx dotenv-cli -e .env.local -- npx prisma migrate reset",
+        "db:studio": "npx dotenv-cli -e .env.local -- npx prisma studio"
+    },
 	"dependencies": {
 		"@jojojoseph/toon-json-converter": "^2.0.3",
 		"@orpc/client": "^1.13.7",
@@ -25,6 +32,7 @@
 		"@radix-ui/react-toast": "^1.2.15",
 		"@tanstack/react-query": "^5.90.21",
 		"@tanstack/react-query-devtools": "^5.91.3",
+		"better-auth": "^1.5.5",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
 		"dotenv": "^17.3.1",
