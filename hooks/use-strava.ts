@@ -2,13 +2,6 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import orpcClient from "@/lib/orpc/client";
 import type { Activity } from "@/lib/types";
 
-// --- getAuthUrl ---
-const authUrlProcedure = orpcClient.strava.getAuthUrl;
-
-export const useGetAuthUrl = () => {
-	return useQuery(authUrlProcedure.queryOptions());
-};
-
 // --- getActivities ---
 const activitiesProcedure = orpcClient.strava.getActivities;
 export const useGetActivities = (options?: { initialData?: Activity[] }) => {

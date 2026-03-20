@@ -3,7 +3,7 @@ const nextConfig = {
 	// Enable standalone output for optimized Docker deployments
 	// This generates a .next/standalone directory with only necessary files
 	// Reduces image size and improves security by excluding unused dependencies
-	output: 'standalone',
+	output: "standalone",
 
 	async rewrites() {
 		return [

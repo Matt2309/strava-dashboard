@@ -12,12 +12,14 @@ export const activitySchema = z.object({
 	start_date: z.string(),
 	average_heartrate: z.number().optional(),
 	suffer_score: z.number().optional(),
-	gear: z.object({
-        id: z.string(),
-        primary: z.boolean(),
-        name: z.string(),
-        converted_distance: z.number().optional(),
-    }).optional(),
+	gear: z
+		.object({
+			id: z.string(),
+			primary: z.boolean(),
+			name: z.string(),
+			converted_distance: z.number().optional(),
+		})
+		.optional(),
 	device_name: z.string().optional(),
 });
 

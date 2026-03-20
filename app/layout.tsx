@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import { Providers } from "@/components/Providers";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Toaster } from "@/components/ui/toaster";
+import { TanstackProvider } from "@/components/providers/tanstack-wrapper";
 
 const geistSans = Geist({
 	variable: "--font-geist-sans",
@@ -42,7 +42,7 @@ export default function RootLayout({
 						<div className="flex fixed top-4 right-4">
 							<ThemeToggle />
 						</div>
-						<Providers>{children}</Providers>
+						<TanstackProvider>{children}</TanstackProvider>
 						<Toaster />
 					</ErrorBoundary>
 				</ThemeProvider>
