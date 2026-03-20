@@ -6,8 +6,10 @@
 		"dev": "next dev",
 		"build": "next build",
 		"start": "next start",
-		"lint": "biome check",
-		"format": "biome format --write",
+		"biome:format": "biome format",
+		"biome:format:fix": "biome format --write",
+		"biome:lint": "biome check",
+		"biome:lint:fix": "biome check --write",
 		"docker:build": "docker compose -f docker/compose.prod.yml --env-file .env.local build",
 		"docker:dev": "docker compose -f docker/compose.dev.yml --env-file .env.local up --build --remove-orphans",
 		"docker:inspect": "docker inspect dromos:prod --format='{{.Os}}/{{.Architecture}}'",
@@ -21,6 +23,7 @@
 		"db:studio": "npx dotenv-cli -e .env.local -- npx prisma studio"
 	},
 	"dependencies": {
+		"@better-fetch/fetch": "^1.1.21",
 		"@jojojoseph/toon-json-converter": "^2.0.3",
 		"@orpc/client": "^1.13.7",
 		"@orpc/server": "^1.13.7",
