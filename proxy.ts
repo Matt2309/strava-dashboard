@@ -9,11 +9,11 @@ export async function proxy(request: NextRequest) {
 		request.nextUrl.pathname.startsWith(route),
 	);
 
-	// 2. Richiedi la sessione tramite HTTP (funziona perfettamente nell'Edge)
-	const { data: session } = await betterFetch<Session>(
-		"/api/auth/get-session",
-		{
-			baseURL: request.nextUrl.origin,
+    const baseURL = process.env.INTERNAL_FETCH_URL || request.nextUrl.origin;
+    const { data: session } = await betterFetch<Session>(
+        "/api/auth/get-session",
+        {
+            baseURL,
 			headers: {
 				// Fondamentale: passa i cookie della richiesta originale
 				cookie: request.headers.get("cookie") || "",

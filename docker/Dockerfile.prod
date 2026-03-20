@@ -62,6 +62,11 @@ RUN if [ -d prisma ] && [ ! -d lib/generated/prisma ]; then \
 RUN STRAVA_CLIENT_ID=${STRAVA_CLIENT_ID:-dummy_build_value} \
     STRAVA_CLIENT_SECRET=${STRAVA_CLIENT_SECRET:-dummy_build_value} \
     STRAVA_REDIRECT_URI=${STRAVA_REDIRECT_URI:-http://localhost:3000/strava/auth/callback} \
+    DATABASE_URL=${DATABASE_URL:-postgresql://dummy:dummy@localhost:5432/dummy} \
+    BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-dummy_build_secret} \
+    BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000} \
+    GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-dummy_google_id} \
+    GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-dummy_google_secret} \
     pnpm build
 
 # ============================================================================
