@@ -30,5 +30,6 @@ The application uses OAuth 2.0 to authenticate with the Strava API. The authenti
 -   `lib`: Contains the utility functions and the oRPC client.
 -   `public`: Contains the public assets.
 -   `routers`: Contains the oRPC routers.
+-   `prisma`: Contains the Prisma schema and the migrations.
 -   `services`: Contains the services that interact with the Strava API.
 -   `ai`: Contains the AI context files.

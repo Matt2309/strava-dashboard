@@ -1,6 +1,5 @@
 # Role
-You are an expert Principal Full-Stack Engineer specializing in Next.js 16 (App Router), TypeScript, Tailwind CSS, oRPC, and TanStack Query. You write clean, modular, and highly typesafe code, strictly separating domain logic from infrastructure.
-
+You are an expert Principal Full-Stack Engineer specializing in Next.js 16 (App Router), TypeScript, Tailwind CSS, oRPC, Prisma, and TanStack Query. You write clean, modular, and highly typesafe code, strictly separating domain logic from infrastructure.
 # Initialization Context
 Before writing any code, you MUST read and internalize the following project documentation:
 - `ai/context/architecture.md` (Project Architecture)
@@ -10,42 +9,33 @@ Before writing any code, you MUST read and internalize the following project doc
 - `ai/docs/strava-api-notes.md` (Strava API integration specifics)
 
 # Task
-Implement the **Strava Dashboard** feature using oRPC combined with the TanStack Query integration (`@orpc/react-query`).
+Your goal is to completely migrate the authentication system.
+1. Remove Old Code: Completely rip out the existing manual Strava OAuth flow (custom fetch, manual callback endpoints, and related oRPC auth procedures).
+2. Implement Better Auth: Setup better-auth as the core authentication solution.
+3. Standard Login: Implement Email/Password registration/login and Google OAuth using better-auth built-in providers.
+4. Strava OAuth: Implement Strava login using the better-auth Generic OAuth Plugin (genericOAuth). CRITICAL: Ensure that the Strava access_token and refresh_token are saved in the database to be used for future API calls to Strava.
 
 ## Feature Roadmap & Requirements
 Users must be able to:
-1. Authenticate with Strava (OAuth flow).
-2. View a list of recent activities.
-3. Open detailed views for specific activities.
-4. Export a training summary as a TOON JSON file.
-
-### Required Metrics to Display:
-- Distance
-- Pace
-- Average Heart Rate (HR)
-- Elevation Gain
-- Training Load
-- Gear Used
-- Device Name
-
-# Technical Rules & Constraints
+1. Access a public /login and /register page built with shadcn/ui components.
+2. Authenticate via Credentials (Email/Password), Google, or Strava.
+3. Route Protection: Unauthenticated users attempting to access ANY route other than /login, /register, or /api/auth/* must be intercepted and redirected to /login via Next.js Middleware (middleware.ts).
+4. Session Management: The client app must be able to read the session state reactively.
 
 ## 1. Next.js 16 App Router Specifics
 - Use React Server Components (RSC) for initial page loads, layouts, and SEO-critical data.
-- Use `'use client'` for interactive UI components and client-side data fetching (TanStack Query).
-- Keep the `app/` directory clean; move business logic and complex UI assembly out of `page.tsx`.
+- Use Next.js Middleware to protect private routes securely at the edge.
+- Setup the core Better Auth API handler at `app/api/auth/[...all]/route.ts`.
 
-## 2. oRPC & TanStack Query Integration
-- All oRPC procedures MUST be defined inside the `/routers` folder.
-- Ensure strict input validation using Zod within oRPC routers.
-- Use the `@orpc/react-query` integration for client-side data fetching and mutations.
-- Leverage TanStack Query's built-in caching, `isLoading`, and `isError` states to handle loading skeletons and error boundaries in the UI.
+## 2. Database & Prisma Setup
+- Update prisma/schema.prisma with the exact core tables required by Better Auth (`User`, `Session`, `Account`, `Verification`).
+- Ensure the Account table is correctly configured to store OAuth tokens from Strava and Google.
 
 ## 3. UI, State, & Tailwind CSS
-- All custom React hooks MUST be placed in the `/hooks` folder. If wrapping oRPC/TanStack queries into custom hooks for reusability, put them here.
-- Use Tailwind CSS for all styling. Follow a mobile-first approach.ù
-- When possible, use shadch/ui components for the UI
-- Build generic, reusable UI components (e.g., `Card`, `MetricBadge`, `SkeletonLoader`) in a `/components/ui` folder.
+- Use Tailwind CSS for all styling. Follow a mobile-first approach.
+- Use shadcn/ui for forms, inputs, buttons, and OAuth provider buttons.
+- Create a reusable LoginForm and RegisterForm in /components/auth.
+- Use the Better Auth React Client (createAuthClient) for client-side hooks like useSession(), signIn.social, etc.
 
 ## 4. General Code Quality
 - Follow existing architecture
@@ -59,11 +49,12 @@ Users must be able to:
 
 # Execution Plan
 Please execute this task in the following order:
-1. **Plan:** Briefly outline the file structure, components, and TanStack Query setup you intend to create or modify.
-2. **Types & Procedures:** Define the oRPC procedures and Zod schemas required for the Strava data.
-3. **Data Fetching Hooks:** Create the custom hooks in `/hooks` that wrap `@orpc/react-query` calls for the Strava dashboard.
-4. **UI Components:** Create the reusable metric cards, layout components, and loading skeletons.
-5. **Integration:** Implement the Next.js pages, integrating the client-side TanStack queries and UI components.
+1. **Plan:** Briefly outline the files to delete (old Strava flow) and the files to create/modify.
+2. **Database Schema:** Update schema.prisma with Better Auth required models and generate the client.
+3. **Auth Core:** Check `lib/auth.ts` for Better Auth, the Prisma adapter, Google provider, and the Generic OAuth Plugin for Strava. Create the Next.js API route handler.
+4. **Route Protection:** Implement `middleware.ts` to secure the application.
+5. **Auth Client & UI:** Create `lib/auth-client.ts` and build the login/registration pages and components using shadcn/ui.
+6. **Cleanup:** Delete the old manual Strava auth endpoints and utility functions.
 
 # AI Agent Rules
 
