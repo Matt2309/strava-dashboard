@@ -1,6 +1,8 @@
-import { jsonToToon } from "@jojojoseph/toon-json-converter";
-import { cookies } from "next/headers";
+import { type JsonValue, jsonToToon } from "@jojojoseph/toon-json-converter";
+import { headers } from "next/headers";
 import { z } from "zod";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { activitySchema } from "@/lib/types";
 
 const STRAVA_API_BASE = "https://www.strava.com/api/v3";
@@ -16,15 +18,38 @@ export class StravaAPIError extends Error {
 }
 
 async function getAccessToken() {
-	// Await the cookies() Promise here too
-	const cookieStore = await cookies();
-	const accessToken = cookieStore.get("strava_access_token")?.value;
+	const session = await auth.api.getSession({ headers: await headers() });
 
-	if (!accessToken) {
+	if (!session) {
 		throw new StravaAPIError("Unauthorized", 401);
 	}
 
-	return accessToken;
+	const account = await prisma.account.findFirst({
+		where: {
+			userId: session.user.id,
+			providerId: "strava",
+		},
+		select: {
+			accessToken: true,
+			accessTokenExpiresAt: true,
+		},
+	});
+
+	if (!account?.accessToken) {
+		throw new StravaAPIError("Strava account not connected", 401);
+	}
+
+	if (
+		account.accessTokenExpiresAt &&
+		account.accessTokenExpiresAt < new Date()
+	) {
+		throw new StravaAPIError(
+			"Strava access token expired. Please reconnect.",
+			401,
+		);
+	}
+
+	return account.accessToken;
 }
 
 interface FetchResponse<T> {
@@ -34,7 +59,9 @@ interface FetchResponse<T> {
 	error?: string;
 }
 
-async function fetchStravaAPI<T = unknown>(path: string): Promise<FetchResponse<T>> {
+async function fetchStravaAPI<T = unknown>(
+	path: string,
+): Promise<FetchResponse<T>> {
 	try {
 		const accessToken = await getAccessToken();
 		const response = await fetch(`${STRAVA_API_BASE}/${path}`, {
@@ -66,7 +93,8 @@ async function fetchStravaAPI<T = unknown>(path: string): Promise<FetchResponse<
 				error: error.message,
 			};
 		}
-		const errorMessage = error instanceof Error ? error.message : "Unknown error";
+		const errorMessage =
+			error instanceof Error ? error.message : "Unknown error";
 		return {
 			ok: false,
 			statusCode: 500,
@@ -77,7 +105,7 @@ async function fetchStravaAPI<T = unknown>(path: string): Promise<FetchResponse<
 
 export async function getActivities() {
 	const response = await fetchStravaAPI<unknown[]>("athlete/activities");
-	
+
 	if (!response.ok) {
 		throw new StravaAPIError(
 			response.error || "Failed to fetch activities",
@@ -88,16 +116,17 @@ export async function getActivities() {
 	try {
 		return z.array(activitySchema).parse(response.data);
 	} catch (error) {
-		const zodError = error instanceof z.ZodError
-			? `Invalid activity data: ${error.message}`
-			: "Failed to parse activity data";
+		const zodError =
+			error instanceof z.ZodError
+				? `Invalid activity data: ${error.message}`
+				: "Failed to parse activity data";
 		throw new StravaAPIError(zodError, 422);
 	}
 }
 
 export async function getActivity(id: string) {
-	const response = await fetchStravaAPI("activities/" + id);
-	
+	const response = await fetchStravaAPI(`activities/${id}`);
+
 	if (!response.ok) {
 		throw new StravaAPIError(
 			response.error || "Failed to fetch activity",
@@ -108,18 +137,22 @@ export async function getActivity(id: string) {
 	try {
 		return activitySchema.parse(response.data);
 	} catch (error) {
-		const zodError = error instanceof z.ZodError
-			? `Invalid activity data: ${error.message}`
-			: "Failed to parse activity data";
+		const zodError =
+			error instanceof z.ZodError
+				? `Invalid activity data: ${error.message}`
+				: "Failed to parse activity data";
 		throw new StravaAPIError(zodError, 422);
 	}
 }
 
 export async function getRawActivity(id: string) {
-	const response = await fetchStravaAPI<Record<string, any>>("activities/" + id);
-	
+	const response = await fetchStravaAPI<JsonValue>(`activities/${id}`);
+
 	if (!response.ok) {
-		throw new StravaAPIError(response.error || "Failed to fetch activity", response.statusCode);
+		throw new StravaAPIError(
+			response.error || "Failed to fetch activity",
+			response.statusCode,
+		);
 	}
 
 	return response.data;
@@ -130,5 +163,5 @@ export async function exportActivityToToon(id: string) {
 	if (!activity) {
 		throw new StravaAPIError("Activity data is empty", 500);
 	}
-	return jsonToToon(activity as any);
+	return jsonToToon(activity);
 }
