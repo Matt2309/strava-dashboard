@@ -18,38 +18,61 @@ export class StravaAPIError extends Error {
 }
 
 async function getAccessToken() {
-	const session = await auth.api.getSession({ headers: await headers() });
+    const session = await auth.api.getSession({ headers: await headers() });
 
-	if (!session) {
-		throw new StravaAPIError("Unauthorized", 401);
-	}
+    if (!session) {
+        throw new StravaAPIError("Unauthorized", 401);
+    }
 
-	const account = await prisma.account.findFirst({
-		where: {
-			userId: session.user.id,
-			providerId: "strava",
-		},
-		select: {
-			accessToken: true,
-			accessTokenExpiresAt: true,
-		},
-	});
+    const account = await prisma.account.findFirst({
+        where: {
+            userId: session.user.id,
+            providerId: "strava",
+        },
+    });
 
-	if (!account?.accessToken) {
-		throw new StravaAPIError("Strava account not connected", 401);
-	}
+    if (!account?.accessToken || !account.refreshToken) {
+        throw new StravaAPIError("Strava account not connected", 401);
+    }
 
-	if (
-		account.accessTokenExpiresAt &&
-		account.accessTokenExpiresAt < new Date()
-	) {
-		throw new StravaAPIError(
-			"Strava access token expired. Please reconnect.",
-			401,
-		);
-	}
+    if (
+        account.accessTokenExpiresAt &&
+        account.accessTokenExpiresAt > new Date()
+    ) {
+        return account.accessToken;
+    }
 
-	return account.accessToken;
+    // REFRESH TOKEN
+    const response = await fetch("https://www.strava.com/oauth/token", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            client_id: process.env.STRAVA_CLIENT_ID,
+            client_secret: process.env.STRAVA_CLIENT_SECRET,
+            grant_type: "refresh_token",
+            refresh_token: account.refreshToken,
+        }),
+    });
+
+    if (!response.ok) {
+        throw new StravaAPIError("Failed to refresh Strava token", 401);
+    }
+
+    const data = await response.json();
+
+    // update DB
+    await prisma.account.update({
+        where: { id: account.id },
+        data: {
+            accessToken: data.access_token,
+            refreshToken: data.refresh_token,
+            accessTokenExpiresAt: new Date(data.expires_at * 1000),
+        },
+    });
+
+    return data.access_token;
 }
 
 interface FetchResponse<T> {
