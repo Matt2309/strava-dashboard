@@ -17,10 +17,6 @@ export type ActivityCreateInput = {
 	userId: string;
 };
 
-export type ActivityUpdateInput = Partial<
-	Omit<ActivityCreateInput, "stravaId" | "userId">
->;
-
 /**
  * Upsert an activity by its Strava ID.
  * Creates a new record if it doesn't exist, updates it otherwise.

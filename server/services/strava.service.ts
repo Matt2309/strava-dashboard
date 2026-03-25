@@ -1,6 +1,8 @@
+import { type JsonValue, jsonToToon } from "@jojojoseph/toon-json-converter";
 import { z } from "zod";
 import type { Prisma } from "@/lib/generated/prisma/client";
-import type { Activity } from "@/lib/types";
+import { prisma } from "@/lib/prisma";
+import {type Activity, activitySchema, athleteStatsSchema} from "@/lib/types";
 import {
 	fetchStravaForUser,
 	getStravaAthleteId,
@@ -47,50 +49,6 @@ export function categorizeSportType(sportType: string): {
 	};
 	return mapping[sportType] ?? { sportName: "other", terrainType: "other" };
 }
-
-// ---------------------------------------------------------------------------
-// Strava API response schemas
-// ---------------------------------------------------------------------------
-
-const stravaActivitySchema = z.object({
-	id: z.number(),
-	name: z.string(),
-	distance: z.number(),
-	moving_time: z.number(),
-	elapsed_time: z.number(),
-	total_elevation_gain: z.number(),
-	type: z.string(),
-	sport_type: z.string(),
-	start_date: z.string(),
-	average_heartrate: z.number().optional(),
-	suffer_score: z.number().optional(),
-	gear: z
-		.object({
-			id: z.string(),
-			primary: z.boolean(),
-			name: z.string(),
-			converted_distance: z.number().optional(),
-		})
-		.optional(),
-	device_name: z.string().optional(),
-});
-
-type StravaActivity = z.infer<typeof stravaActivitySchema>;
-
-const athleteStatsSchema = z.object({
-	all_run_totals: z.object({
-		count: z.number(),
-		distance: z.number(),
-		moving_time: z.number(),
-		elevation_gain: z.number(),
-	}),
-	all_ride_totals: z.object({
-		count: z.number(),
-		distance: z.number(),
-		moving_time: z.number(),
-		elevation_gain: z.number(),
-	}),
-});
 
 // ---------------------------------------------------------------------------
 // DB → UI type transform
@@ -147,6 +105,69 @@ export async function getActivitiesForUser(
 }
 
 /**
+ * Get a single activity by Strava ID.
+ * Fetch from Strava API with the user's token.
+ */
+export async function getActivityDetail(
+	userId: string,
+	stravaActivityId: string,
+): Promise<Activity> {
+	const result = await fetchStravaForUser<unknown>(
+		userId,
+		`activities/${stravaActivityId}`,
+	);
+
+	if (!result.ok || !result.data) {
+		throw new StravaClientError(
+			result.error || "Failed to fetch activity",
+			result.statusCode,
+		);
+	}
+
+	const parsed = activitySchema.safeParse(result.data);
+	if (!parsed.success) {
+		throw new StravaClientError("Invalid activity data from Strava API", 422);
+	}
+
+	return {
+		id: parsed.data.id,
+		name: parsed.data.name,
+		distance: parsed.data.distance,
+		moving_time: parsed.data.moving_time,
+		elapsed_time: parsed.data.elapsed_time,
+		total_elevation_gain: parsed.data.total_elevation_gain,
+		type: parsed.data.type,
+		sport_type: parsed.data.sport_type,
+		start_date: parsed.data.start_date,
+		average_heartrate: parsed.data.average_heartrate,
+		suffer_score: parsed.data.suffer_score,
+	};
+}
+
+/**
+ * Export an activity to TOON JSON format.
+ * Fetch the raw activity data from Strava API with the user's token.
+ */
+export async function getActivityToonExport(
+	userId: string,
+	stravaActivityId: string,
+): Promise<string> {
+	const result = await fetchStravaForUser<unknown>(
+		userId,
+		`activities/${stravaActivityId}`,
+	);
+
+	if (!result.ok || !result.data) {
+		throw new StravaClientError(
+			result.error || "Failed to fetch activity",
+			result.statusCode,
+		);
+	}
+
+	return jsonToToon(result.data as JsonValue);
+}
+
+/**
  * Perform the initial data fetch for a newly connected Strava user:
  *  1. Seed UserStatistics from athlete all-time totals.
  *  2. Fetch the last 30 activities and persist them.
@@ -184,7 +205,7 @@ export async function runInitialSync(userId: string): Promise<void> {
 	if (!activitiesResult.ok || !activitiesResult.data) return;
 
 	const activities = z
-		.array(stravaActivitySchema)
+		.array(activitySchema)
 		.safeParse(activitiesResult.data);
 	if (!activities.success) return;
 
@@ -198,7 +219,7 @@ export async function runInitialSync(userId: string): Promise<void> {
  */
 async function persistStravaActivity(
 	userId: string,
-	activity: StravaActivity,
+	activity: Activity,
 ): Promise<void> {
 	const { sportName, terrainType } = categorizeSportType(activity.sport_type);
 
@@ -278,7 +299,7 @@ async function handleWebhookCreate(
 
 	if (!result.ok || !result.data) return;
 
-	const parsed = stravaActivitySchema.safeParse(result.data);
+	const parsed = activitySchema.safeParse(result.data);
 	if (!parsed.success) return;
 
 	await persistStravaActivity(userId, parsed.data);
@@ -307,4 +328,30 @@ async function handleWebhookDelete(
 		elevationGainMeters: deleted.totalElevationGain,
 		startDate: deleted.startDate,
 	});
+}
+
+/**
+ * Checks if a user has a valid, non-expired Strava OAuth connection.
+ */
+export async function isStravaConnected(userId: string): Promise<boolean> {
+	const account = await prisma.account.findFirst({
+		where: {
+			userId,
+			providerId: "strava",
+		},
+		select: {
+			accessToken: true,
+			accessTokenExpiresAt: true,
+		},
+	});
+
+	if (!account?.accessToken) {
+		return false;
+	}
+
+	if (!account.accessTokenExpiresAt) {
+		return true;
+	}
+
+	return account.accessTokenExpiresAt > new Date();
 }
