@@ -22,6 +22,9 @@ Your goal is to implement the Strava Webhook synchronization for reducing the po
 
 4. Compliance Purge: Implement the logic to purge raw activity data after 7 days without altering the user's aggregated statistics.
 
+# Channel
+Submit a PR to the branch feature/garage
+
 # Feature Roadmap & Requirements
 Users must experience a seamless integration:
 
