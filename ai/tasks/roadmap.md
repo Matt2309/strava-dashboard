@@ -15,3 +15,13 @@ Metrics displayed:
 - training load
 - gear
 - device name
+
+### Feature: Strava webhook
+User can:
+
+- authenticate with Strava
+
+The system can:
+- fetch all latest 30 activity
+- setup webhook call
+- update the db and stats when triggered by webhook
