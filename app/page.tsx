@@ -4,18 +4,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import type { Activity } from "@/lib/types";
-import { getActivities, StravaAPIError } from "@/services/strava";
+import { StravaClientError } from "@/server/infrastructure/strava.client";
+import { getActivitiesForUser } from "@/server/services/strava.service";
 import { ActivityList } from "./ActivityList";
 
-async function fetchInitialData(): Promise<{
+async function fetchInitialData(userId: string): Promise<{
 	activities: Activity[];
 	stravaError: boolean;
 }> {
 	try {
-		const activities = await getActivities();
+		const activities = await getActivitiesForUser(userId);
 		return { activities, stravaError: false };
 	} catch (error) {
-		if (error instanceof StravaAPIError && error.statusCode === 401) {
+		if (error instanceof StravaClientError && error.statusCode === 401) {
 			return { activities: [], stravaError: true };
 		}
 		console.error("Failed to fetch initial activities:", error);
@@ -41,7 +42,7 @@ export default async function Home() {
 		(!stravaAccount.accessTokenExpiresAt ||
 			stravaAccount.accessTokenExpiresAt > new Date());
 
-	if (!stravaConnected) {
+	if (!stravaConnected || !session) {
 		return (
 			<div className="p-4">
 				<header className="flex items-center justify-between mb-4">
@@ -68,7 +69,7 @@ export default async function Home() {
 		);
 	}
 
-	const { activities } = await fetchInitialData();
+	const { activities } = await fetchInitialData(session.user.id);
 
 	return (
 		<div className="p-4">
