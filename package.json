@@ -20,7 +20,15 @@
 		"db:migrate:dev": "npx dotenv-cli -e .env.local -- npx prisma migrate dev",
 		"db:push": "npx dotenv-cli -e .env.local -- npx prisma db push",
 		"db:reset": "npx dotenv-cli -e .env.local -- npx prisma migrate reset",
-		"db:studio": "npx dotenv-cli -e .env.local -- npx prisma studio"
+		"db:studio": "npx dotenv-cli -e .env.local -- npx prisma studio",
+
+        "stg-db:push": "npx dotenv-cli -e .env.stg.local -- npx prisma db push",
+        "stg-db:reset": "npx dotenv-cli -e .env.stg.local -- npx prisma migrate reset",
+        "stg-db:studio": "npx dotenv-cli -e .env.stg.local -- npx prisma studio",
+
+        "prod-db:push": "npx dotenv-cli -e .env.production.local -- npx prisma db push",
+        "prod-db:reset": "npx dotenv-cli -e .env.production.local -- npx prisma migrate reset",
+        "prod-db:studio": "npx dotenv-cli -e .env.production.local -- npx prisma studio"
 	},
 	"dependencies": {
 		"@better-fetch/fetch": "^1.1.21",
