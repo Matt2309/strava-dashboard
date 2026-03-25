@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { TanstackProvider } from "@/components/providers/tanstack-wrapper";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Toaster } from "@/components/ui/toaster";
-import { TanstackProvider } from "@/components/providers/tanstack-wrapper";
 
 const geistSans = Geist({
 	variable: "--font-geist-sans",

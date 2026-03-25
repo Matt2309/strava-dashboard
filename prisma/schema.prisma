@@ -128,6 +128,11 @@ model Activity {
   averageHeartrate   Float?
   sufferScore        Float?
 
+  // Compliance fields
+  rawJson   Json?    // Raw Strava API response; nullified after 7 days
+  isPurged  Boolean  @default(false) // True once rawJson has been purged
+  createdAt DateTime @default(now()) // When this record was synced
+
   // user relationship
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -153,9 +158,9 @@ model UserStatistics {
   terrain_type String
 
   total_distance_km Float @default(0)
-  total_time_min    Int   @default(0) // Seconds
-  total_elevation_m Int   @default(0) // Seconds
-  sessions_count    Int   @default(0) // Seconds
+  total_time_min    Int   @default(0) // Stored in seconds (field name is misleading; do not convert)
+  total_elevation_m Int   @default(0)
+  sessions_count    Int   @default(0)
 
   // Records
   max_distance_km Float @default(0)
@@ -168,5 +173,6 @@ model UserStatistics {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, sport_name, terrain_type])
   @@map("user_statistics")
 }

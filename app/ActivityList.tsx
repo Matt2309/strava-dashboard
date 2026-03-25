@@ -4,16 +4,9 @@ import { ActivityCard } from "@/components/ActivityCard";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGetActivities } from "@/hooks/use-strava";
-import type { Activity } from "@/lib/types";
 
-export function ActivityList({
-	initialActivities,
-}: {
-	initialActivities: Activity[];
-}) {
-	const { data, isLoading, isError } = useGetActivities({
-		initialData: initialActivities,
-	});
+export function ActivityList() {
+	const { data, isLoading, isError } = useGetActivities();
 
 	if (isLoading) {
 		return (
