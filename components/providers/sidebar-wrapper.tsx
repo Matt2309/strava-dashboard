@@ -11,12 +11,6 @@ type SidebarWrapperProps = {
 export function SidebarWrapper({ children }: SidebarWrapperProps) {
 	return (
 		<SidebarProvider
-            style={
-                {
-                    "--sidebar-width": "30rem",
-                    "--sidebar-width-mobile": "20rem",
-                } as React.CSSProperties
-            }
         >
 			<SidebarBody />
 			<main className="w-full">

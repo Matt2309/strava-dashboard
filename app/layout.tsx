@@ -5,7 +5,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { TanstackProvider } from "@/components/providers/tanstack-wrapper";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "@/components/ui/sonner"
 
 const geistSans = Geist({
 	variable: "--font-geist-sans",
@@ -43,7 +43,7 @@ export default function RootLayout({
 							<ThemeToggle />
 						</div>
 						<TanstackProvider>{children}</TanstackProvider>
-						<Toaster />
+                        <Toaster />
 					</ErrorBoundary>
 				</ThemeProvider>
 			</body>

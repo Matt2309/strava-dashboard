@@ -23,15 +23,14 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/components/ui/use-toast";
 // Import your new hooks here (adjust the path based on your folder structure)
 import { useExportToToon, useGetActivity } from "@/hooks/use-strava";
 import { calculatePace, formatDate, formatMovingTime } from "@/lib/utils";
+import {toast} from "sonner";
 
 export default function ActivityPage() {
 	const params = useParams();
 	const id = params.id as string;
-	const { toast } = useToast();
 
 	// Replaced useStrava() with the new TanStack Query hooks
 	const { data: activity, isLoading: isLoadingActivity } = useGetActivity(id);
@@ -53,15 +52,12 @@ export default function ActivityPage() {
 			a.click();
 			URL.revokeObjectURL(url);
 
-			toast({
-				title: "Export Successful",
+			toast.success("Export Successful", {
 				description: "The activity has been exported to a TOON file.",
 			});
 		} catch (error) {
 			console.error("Failed to export to TOON:", error);
-			toast({
-				variant: "destructive",
-				title: "Export Failed",
+			toast.error("Export Failed", {
 				description: "There was a problem exporting the activity.",
 			});
 		}
