@@ -17,7 +17,7 @@ export function ActivityCard({ activity }: { activity: Activity }) {
 	const activityDate = formatDate(activity.start_date);
 
 	return (
-		<Link href={`/activity/${activity.id}`}>
+		<Link href={`/app/(app)/activity/${activity.id}`}>
 			<Card className="hover:border-primary transition-colors">
 				<CardHeader className="flex flex-row items-center justify-between">
 					<CardTitle className="text-lg font-bold">{activity.name}</CardTitle>

@@ -3,7 +3,7 @@ import { ConnectStrava } from "@/components/ConnectStrava";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { auth } from "@/lib/auth";
 import { isStravaConnected } from "@/routers/strava";
-import { ActivityList } from "./ActivityList";
+import { ActivityList } from "../../ActivityList";
 
 export default async function Home() {
 	const session = await auth.api.getSession({ headers: await headers() });

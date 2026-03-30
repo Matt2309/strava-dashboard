@@ -24,18 +24,18 @@ export const activitySchema = z.object({
 });
 
 export const athleteStatsSchema = z.object({
-    all_run_totals: z.object({
-        count: z.number(),
-        distance: z.number(),
-        moving_time: z.number(),
-        elevation_gain: z.number(),
-    }),
-    all_ride_totals: z.object({
-        count: z.number(),
-        distance: z.number(),
-        moving_time: z.number(),
-        elevation_gain: z.number(),
-    }),
+	all_run_totals: z.object({
+		count: z.number(),
+		distance: z.number(),
+		moving_time: z.number(),
+		elevation_gain: z.number(),
+	}),
+	all_ride_totals: z.object({
+		count: z.number(),
+		distance: z.number(),
+		moving_time: z.number(),
+		elevation_gain: z.number(),
+	}),
 });
 
 export type Activity = z.infer<typeof activitySchema>;

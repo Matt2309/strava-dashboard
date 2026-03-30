@@ -7,7 +7,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import {RunningTrackAnimation} from "@/components/auth/RunTrackAnimation";
+import { RunningTrackAnimation } from "@/components/auth/RunTrackAnimation";
 export const metadata: Metadata = {
 	title: "Sign In — Dromos",
 	description: "Sign in to your Dromos account",
@@ -26,7 +26,7 @@ export default function LoginPage() {
 				<CardContent>
 					<LoginForm />
 				</CardContent>
-                <RunningTrackAnimation/>
+				<RunningTrackAnimation />
 			</Card>
 		</div>
 	);

@@ -2,7 +2,7 @@ import { type JsonValue, jsonToToon } from "@jojojoseph/toon-json-converter";
 import { z } from "zod";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import {type Activity, activitySchema, athleteStatsSchema} from "@/lib/types";
+import { type Activity, activitySchema, athleteStatsSchema } from "@/lib/types";
 import {
 	fetchStravaForUser,
 	getStravaAthleteId,
@@ -204,9 +204,7 @@ export async function runInitialSync(userId: string): Promise<void> {
 
 	if (!activitiesResult.ok || !activitiesResult.data) return;
 
-	const activities = z
-		.array(activitySchema)
-		.safeParse(activitiesResult.data);
+	const activities = z.array(activitySchema).safeParse(activitiesResult.data);
 	if (!activities.success) return;
 
 	for (const activity of activities.data) {
