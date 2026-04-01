@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LoginForm } from "@/components/auth";
+import { RunningTrackAnimation } from "@/components/auth/RunTrackAnimation";
 import {
 	Card,
 	CardContent,
@@ -7,7 +8,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { RunningTrackAnimation } from "@/components/auth/RunTrackAnimation";
 export const metadata: Metadata = {
 	title: "Sign In — Dromos",
 	description: "Sign in to your Dromos account",

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,7 +27,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 // Import your new hooks here (adjust the path based on your folder structure)
 import { useExportToToon, useGetActivity } from "@/hooks/use-strava";
 import { calculatePace, formatDate, formatMovingTime } from "@/lib/utils";
-import {toast} from "sonner";
 
 export default function ActivityPage() {
 	const params = useParams();

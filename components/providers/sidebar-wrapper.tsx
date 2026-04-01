@@ -1,8 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { SidebarBody } from "@/components/sidebar/sidebar-body";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
 type SidebarWrapperProps = {
 	children: ReactNode;
@@ -10,12 +10,9 @@ type SidebarWrapperProps = {
 
 export function SidebarWrapper({ children }: SidebarWrapperProps) {
 	return (
-		<SidebarProvider
-        >
+		<SidebarProvider>
 			<SidebarBody />
-			<main className="w-full">
-				{children}
-			</main>
+			<main className="w-full">{children}</main>
 		</SidebarProvider>
 	);
 }

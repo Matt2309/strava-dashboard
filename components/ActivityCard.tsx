@@ -7,8 +7,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatDate, formatMovingTime } from "@/lib";
 import type { Activity } from "@/lib/types";
-import {formatDate, formatMovingTime} from "@/lib";
 
 export function ActivityCard({ activity }: { activity: Activity }) {
 	const distanceInKm = (activity.distance / 1000).toFixed(2);
