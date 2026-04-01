@@ -8,7 +8,7 @@ import {
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Activity } from "@/lib/types";
-import { formatDate, formatMovingTime } from "@/lib/utils";
+import {formatDate, formatMovingTime} from "@/lib";
 
 export function ActivityCard({ activity }: { activity: Activity }) {
 	const distanceInKm = (activity.distance / 1000).toFixed(2);
@@ -17,7 +17,7 @@ export function ActivityCard({ activity }: { activity: Activity }) {
 	const activityDate = formatDate(activity.start_date);
 
 	return (
-		<Link href={`/app/(app)/activity/${activity.id}`}>
+		<Link href={`/activity/${activity.id}`}>
 			<Card className="hover:border-primary transition-colors">
 				<CardHeader className="flex flex-row items-center justify-between">
 					<CardTitle className="text-lg font-bold">{activity.name}</CardTitle>

@@ -14,7 +14,6 @@ export function SidebarWrapper({ children }: SidebarWrapperProps) {
         >
 			<SidebarBody />
 			<main className="w-full">
-				<SidebarTrigger></SidebarTrigger>
 				{children}
 			</main>
 		</SidebarProvider>
