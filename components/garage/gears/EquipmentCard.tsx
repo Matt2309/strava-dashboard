@@ -69,39 +69,37 @@ export function EquipmentCard({ gear, variant }: EquipmentCardProps) {
 		: DEVICE_TYPE_LABELS[(gear as GearDevice).type];
 
 	return (
-		<Link href={`#` /*`/gear/${gear.id}`*/}>
-			<Card className="hover:border-primary transition-colors">
-				<CardHeader className="flex flex-row items-center justify-between">
-					<div className="flex items-center justify-center bg-muted p-2">
-						{getGearIcon(
-							isFunctional
-								? (gear as GearFunctional).type
-								: (gear as GearDevice).type,
-							variant,
-						)}
-					</div>
-					<span className="text-sm text-muted-foreground uppercase">
-						{typeLabel}
-					</span>
-				</CardHeader>
-				<CardContent>
-					<CardTitle className="text-2xl font-bold">{gear.name}</CardTitle>
-					{isFunctional && (
-						<Progress value={progressValue} className="w-full max-w-sm mt-10">
-							<ProgressLabel className="text-sm text-muted-foreground">
-								ODOMETER
-							</ProgressLabel>
-							<ProgressValue>
-								{() => (
-									<span className="ms-auto">
-										{distanceKm}/{MAX_DISTANCE_KM} km
-									</span>
-								)}
-							</ProgressValue>
-						</Progress>
-					)}
-				</CardContent>
-			</Card>
-		</Link>
+        <Card className="hover:border-primary transition-colors">
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div className="flex items-center justify-center bg-muted p-2">
+                    {getGearIcon(
+                        isFunctional
+                            ? (gear as GearFunctional).type
+                            : (gear as GearDevice).type,
+                        variant,
+                    )}
+                </div>
+                <span className="text-sm text-muted-foreground uppercase">
+                    {typeLabel}
+                </span>
+            </CardHeader>
+            <CardContent>
+                <CardTitle className="text-2xl font-bold">{gear.name}</CardTitle>
+                {isFunctional && (
+                    <Progress value={progressValue} className="w-full max-w-sm mt-10">
+                        <ProgressLabel className="text-sm text-muted-foreground">
+                            ODOMETER
+                        </ProgressLabel>
+                        <ProgressValue>
+                            {() => (
+                                <span className="ms-auto">
+                                    {distanceKm}/{MAX_DISTANCE_KM} km
+                                </span>
+                            )}
+                        </ProgressValue>
+                    </Progress>
+                )}
+            </CardContent>
+        </Card>
 	);
 }
