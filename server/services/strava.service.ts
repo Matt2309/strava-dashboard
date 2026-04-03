@@ -141,6 +141,8 @@ export async function getActivityDetail(
 		start_date: parsed.data.start_date,
 		average_heartrate: parsed.data.average_heartrate,
 		suffer_score: parsed.data.suffer_score,
+		gear: parsed.data.gear,
+		device_name: parsed.data.device_name,
 	};
 }
 

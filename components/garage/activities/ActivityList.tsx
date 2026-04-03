@@ -1,6 +1,6 @@
 "use client";
 
-import { ActivityCard } from "@/components/activities/ActivityCard";
+import { ActivityCard } from "@/components/garage/activities/ActivityCard";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGetActivities } from "@/hooks/use-strava";

@@ -52,7 +52,7 @@
 
 	--font-display: "Inter", sans-serif;
 
-	--font-heading: var(--font-sans);
+	--font-heading: "Inter", sans-serif;
 }
 
 :root {
@@ -132,6 +132,6 @@
 		@apply bg-background text-foreground;
 	}
 	html {
-		@apply font-sans;
+		@apply font-display;
 	}
 }
