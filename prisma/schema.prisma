@@ -69,6 +69,7 @@ enum FunctionalType {
   ROAD_SHOE // Road shoes
   TRACK_SHOE // Nailed shoe (structure)
   SPIKES_PINS // shoe tacks
+  BIKE // Bicycles
   OTHER
 }
 
@@ -80,6 +81,7 @@ enum DeviceType {
 
 model GearFunctional {
   id       String         @id @default(cuid())
+  stravaId String?        @unique
   name     String
   type     FunctionalType
   distance Float          @default(0)

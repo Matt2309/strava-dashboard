@@ -52,8 +52,9 @@ export function SidebarBody({
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<SidebarMenuButton className="data-[slot=sidebar-menu-button]:p-1.5!">
-							<a href="#">
-								<span className="text-base font-semibold">Dromos Studio</span>
+							<a href="#" className="flex flex-col leading-2">
+								<span className="font-black tracking-tighter uppercase mb-2">Dromos Studio</span>
+                                <span className="text-[10px] text-neutral-500 tracking-[0.2em] font-bold uppercase">Performance lab</span>
 							</a>
 						</SidebarMenuButton>
 					</SidebarMenuItem>

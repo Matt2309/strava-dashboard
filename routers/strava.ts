@@ -8,6 +8,7 @@ import {
 	getActivityDetail,
 	getActivityToonExport,
 	isStravaConnected as isStravaConnectedServ,
+	syncUserEquipment as syncUserEquipmentServ,
 } from "@/server/services/strava.service";
 
 /**
@@ -67,9 +68,18 @@ export const isStravaConnected = os
 	.use(errorHandlerMiddleware)
 	.callable();
 
+export const syncUserEquipment = os
+	.handler(async () => {
+		const userId = await getUserIdFromSession();
+		return await syncUserEquipmentServ(userId);
+	})
+	.use(errorHandlerMiddleware)
+	.callable();
+
 export const stravaRouter = os.router({
 	getActivities,
 	getActivity,
 	exportToToon,
 	isStravaConnected,
+	syncUserEquipment,
 });

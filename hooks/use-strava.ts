@@ -23,6 +23,14 @@ export const useGetActivity = (id: string) => {
 	);
 };
 
+// --- syncGear ---
+const syncGearProcedure = orpcClient.strava.syncUserEquipment;
+export const useSyncUserEquipment = () => {
+    return useQuery(
+        syncGearProcedure.queryOptions(),
+    );
+};
+
 // --- exportToToon ---
 export const useExportToToon = () => {
 	return useMutation({

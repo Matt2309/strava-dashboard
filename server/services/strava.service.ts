@@ -1,8 +1,14 @@
 import { type JsonValue, jsonToToon } from "@jojojoseph/toon-json-converter";
 import { z } from "zod";
-import type { Prisma } from "@/lib/generated/prisma/client";
+import { FunctionalType, type Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { type Activity, activitySchema, athleteStatsSchema } from "@/lib/types";
+import {
+	type Activity,
+	type Athlete,
+	activitySchema,
+	athleteSchema,
+	athleteStatsSchema,
+} from "@/lib/types";
 import {
 	fetchStravaForUser,
 	getStravaAthleteId,
@@ -15,6 +21,7 @@ import {
 	findActivitiesByUserId,
 	upsertActivity,
 } from "@/server/repositories/activity.repository";
+import { upsertGearFunctional } from "@/server/repositories/gear.repository";
 import {
 	type AthleteTotals,
 	seedStatisticsFromAthleteStats,
@@ -48,6 +55,29 @@ export function categorizeSportType(sportType: string): {
 		Hike: { sportName: "hiking", terrainType: "trail" },
 	};
 	return mapping[sportType] ?? { sportName: "other", terrainType: "other" };
+}
+
+/**
+ * Infer the FunctionalType for gear based on the activity's sport type.
+ * Used when creating gear from activity data (webhook flow).
+ */
+function inferGearTypeFromActivity(sportType: string): FunctionalType {
+	const bikeTypes = [
+		"Ride",
+		"VirtualRide",
+		"MountainBikeRide",
+		"GravelRide",
+		"EBikeRide",
+		"Handcycle",
+		"Velomobile",
+	];
+
+	if (bikeTypes.includes(sportType)) {
+		return FunctionalType.BIKE;
+	}
+
+	// Default to ROAD_SHOE for running, walking, hiking, and other foot-based activities
+	return FunctionalType.ROAD_SHOE;
 }
 
 // ---------------------------------------------------------------------------
@@ -212,6 +242,15 @@ export async function runInitialSync(userId: string): Promise<void> {
 	for (const activity of activities.data) {
 		await persistStravaActivity(userId, activity);
 	}
+
+	// 3. Fetch and persist the user equipment
+	const athleteResult = await fetchStravaForUser<unknown>(userId, "athlete");
+	if (!athleteResult.ok || !athleteResult.data) return;
+
+	const athlete = athleteSchema.safeParse(athleteResult.data);
+	if (!athlete.success) return;
+
+	await persistUserEquipment(userId, athlete.data);
 }
 
 /**
@@ -245,6 +284,47 @@ async function persistStravaActivity(
 		elevationGainMeters: activity.total_elevation_gain,
 		startDate: new Date(activity.start_date),
 	});
+
+	// Update gear distance if activity has associated gear
+	if (activity.gear) {
+		await upsertGearFunctional({
+			stravaId: activity.gear.id,
+			name: activity.gear.name,
+			type: inferGearTypeFromActivity(activity.sport_type),
+			distance: activity.gear.distance,
+			userId,
+		});
+	}
+}
+
+/**
+ * Persist user equipment (shoes and bikes) from Strava athlete data.
+ */
+async function persistUserEquipment(
+	userId: string,
+	athlete: Athlete,
+): Promise<void> {
+	// Persist shoes as ROAD_SHOE
+	for (const shoe of athlete.shoes) {
+		await upsertGearFunctional({
+			stravaId: shoe.id,
+			name: shoe.name,
+			type: FunctionalType.ROAD_SHOE,
+			distance: shoe.distance,
+			userId,
+		});
+	}
+
+	// Persist bikes as BIKE
+	for (const bike of athlete.bikes) {
+		await upsertGearFunctional({
+			stravaId: bike.id,
+			name: bike.name,
+			type: FunctionalType.BIKE,
+			distance: bike.distance,
+			userId,
+		});
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -354,4 +434,32 @@ export async function isStravaConnected(userId: string): Promise<boolean> {
 	}
 
 	return account.accessTokenExpiresAt > new Date();
+}
+
+/**
+ * Fetch athlete data from Strava and sync user equipment (shoes and bikes).
+ * Returns the count of synced items.
+ */
+export async function syncUserEquipment(
+	userId: string,
+): Promise<{ shoes: number; bikes: number }> {
+	const athleteResult = await fetchStravaForUser<unknown>(userId, "athlete");
+
+	if (!athleteResult.ok || !athleteResult.data) {
+		throw new StravaClientError(
+			athleteResult.error || "Failed to fetch athlete data",
+			athleteResult.statusCode,
+		);
+	}
+	const athlete = athleteSchema.safeParse(athleteResult.data);
+	if (!athlete.success) {
+		throw new StravaClientError("Invalid athlete data from Strava API", 422);
+	}
+
+	await persistUserEquipment(userId, athlete.data);
+
+	return {
+		shoes: athlete.data.shoes.length,
+		bikes: athlete.data.bikes.length,
+	};
 }
