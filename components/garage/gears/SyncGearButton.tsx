@@ -5,30 +5,24 @@ import { Button } from "@/components/ui/button";
 import { useSyncUserEquipment } from "@/hooks";
 
 export function SyncGearButton() {
-    const { refetch, isFetching } = useSyncUserEquipment();
+	const { mutate, isPending } = useSyncUserEquipment();
 
-    const handleSync = async () => {
-        const { data: result, error } = await refetch();
+	const handleSync = () => {
+		mutate(undefined, {
+			onSuccess: (result) => {
+				toast.success(
+					`Synced ${result.shoes} shoes and ${result.bikes} bikes!`,
+				);
+			},
+			onError: () => {
+				toast.error("Failed to sync equipment");
+			},
+		});
+	};
 
-        if (error) {
-            toast.error("Failed to sync");
-            return;
-        }
-
-        if (result) {
-            toast.success(
-                `Synced ${result.shoes} shoes and ${result.bikes} bikes!`
-            );
-        }
-    };
-
-    return (
-        <Button
-            onClick={handleSync}
-            disabled={isFetching}
-            variant="outline"
-        >
-            {isFetching ? "Syncing..." : "Sync Gear from Strava"}
-        </Button>
-    );
+	return (
+		<Button onClick={handleSync} disabled={isPending} variant="outline">
+			{isPending ? "Syncing..." : "Sync Gear from Strava"}
+		</Button>
+	);
 }

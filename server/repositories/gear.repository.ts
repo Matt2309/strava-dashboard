@@ -46,3 +46,25 @@ export async function findGearFunctionalByUserId(userId: string) {
 		orderBy: { name: "asc" },
 	});
 }
+
+/**
+ * Find all GearDevice records for a user.
+ */
+export async function findGearDevicesByUserId(userId: string) {
+	return prisma.gearDevice.findMany({
+		where: { userId },
+		orderBy: { name: "asc" },
+	});
+}
+
+/**
+ * Find all gear (functional and devices) for a user.
+ */
+export async function findAllGearByUserId(userId: string) {
+	const [functional, devices] = await Promise.all([
+		findGearFunctionalByUserId(userId),
+		findGearDevicesByUserId(userId),
+	]);
+
+	return { functional, devices };
+}

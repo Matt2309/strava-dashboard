@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { errorHandlerMiddleware } from "@/routers/middlewares/error-handler";
+import { findAllGearByUserId } from "@/server/repositories/gear.repository";
 import {
 	getActivitiesForUser,
 	getActivityDetail,
@@ -76,10 +77,19 @@ export const syncUserEquipment = os
 	.use(errorHandlerMiddleware)
 	.callable();
 
+export const getUserEquipment = os
+	.handler(async () => {
+		const userId = await getUserIdFromSession();
+		return await findAllGearByUserId(userId);
+	})
+	.use(errorHandlerMiddleware)
+	.callable();
+
 export const stravaRouter = os.router({
 	getActivities,
 	getActivity,
 	exportToToon,
 	isStravaConnected,
 	syncUserEquipment,
+	getUserEquipment,
 });
