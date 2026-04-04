@@ -26,6 +26,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 // Import your new hooks here (adjust the path based on your folder structure)
 import { useExportToToon, useGetActivity } from "@/hooks/use-strava";
+import { ROUTES } from "@/lib/routes";
 import { calculatePace, formatDate, formatMovingTime } from "@/lib/utils";
 
 export default function ActivityPage() {
@@ -125,7 +126,7 @@ export default function ActivityPage() {
 	return (
 		<div className="p-4">
 			<header className="flex items-center justify-between mb-4">
-				<Link href="/" className="flex items-center">
+				<Link href={ROUTES.home.path} className="flex items-center">
 					<ArrowLeftIcon className="w-5 h-5 mr-2" />
 					<h1 className="text-2xl font-bold">Activity Details</h1>
 				</Link>

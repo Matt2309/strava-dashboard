@@ -17,6 +17,7 @@ import {
 	useSidebar,
 } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
+import { ROUTES } from "@/lib/routes";
 
 export function NavUser() {
 	const router = useRouter();
@@ -38,7 +39,7 @@ export function NavUser() {
 		await authClient.signOut({
 			fetchOptions: {
 				onSuccess: () => {
-					router.push("/login");
+					router.push(ROUTES.login.path);
 				},
 			},
 		});

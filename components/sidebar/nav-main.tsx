@@ -7,6 +7,7 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import Link from "next/link";
 
 export function NavMain({
 	items,
@@ -22,12 +23,14 @@ export function NavMain({
 			<SidebarGroupContent className="flex flex-col gap-2">
 				<SidebarMenu>
 					{items.map((item) => (
-						<SidebarMenuItem key={item.name}>
-							<SidebarMenuButton tooltip={item.name}>
-								{item.icon && <item.icon />}
-								<span>{item.name}</span>
-							</SidebarMenuButton>
-						</SidebarMenuItem>
+						<Link href={item.url} key={item.name}>
+							<SidebarMenuItem>
+								<SidebarMenuButton tooltip={item.name}>
+									{item.icon && <item.icon />}
+									<span>{item.name}</span>
+								</SidebarMenuButton>
+							</SidebarMenuItem>
+						</Link>
 					))}
 				</SidebarMenu>
 			</SidebarGroupContent>

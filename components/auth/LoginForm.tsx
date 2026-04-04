@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
+import { ROUTES } from "@/lib/routes";
 
 export function LoginForm() {
 	const router = useRouter();
@@ -23,28 +24,28 @@ export function LoginForm() {
 		const { error: signInError } = await authClient.signIn.email({
 			email,
 			password,
-			callbackURL: "/",
+			callbackURL: ROUTES.home.path,
 		});
 
 		if (signInError) {
 			setError(signInError.message ?? "Sign in failed. Please try again.");
 			setLoading(false);
 		} else {
-			router.push("/");
+			router.push(ROUTES.home.path);
 		}
 	};
 
 	const handleGoogleLogin = async () => {
 		await authClient.signIn.social({
 			provider: "google",
-			callbackURL: "/",
+			callbackURL: ROUTES.home.path,
 		});
 	};
 
 	const handleStravaLogin = async () => {
 		await authClient.signIn.oauth2({
 			providerId: "strava",
-			callbackURL: "/",
+			callbackURL: ROUTES.home.path,
 		});
 	};
 
@@ -143,7 +144,7 @@ export function LoginForm() {
 			<p className="text-center text-sm text-muted-foreground">
 				{"Don't have an account? "}
 				<Link
-					href="/register"
+					href={ROUTES.register.path}
 					className="underline underline-offset-4 hover:text-primary"
 				>
 					Register

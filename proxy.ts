@@ -1,17 +1,18 @@
 import { betterFetch } from "@better-fetch/fetch";
 import type { Session } from "better-auth/types";
 import { type NextRequest, NextResponse } from "next/server";
+import { API_ROUTES, getProtectedRoutes, ROUTES } from "@/lib/routes";
 
 export async function proxy(request: NextRequest) {
 	// --- 1. BYPASS PER I WEBHOOK E LE API ESTERNE ---
 	// Se la chiamata arriva da Strava, lasciala passare immediatamente
 	// senza controllare le sessioni o fare fetch interni.
-	if (request.nextUrl.pathname.startsWith("/api/strava/webhook")) {
+	if (request.nextUrl.pathname.startsWith(API_ROUTES["strava-webhook"].path)) {
 		return NextResponse.next();
 	}
 
 	// 2. Definisci le rotte pubbliche che non richiedono login
-	const publicRoutes = ["/login", "/register"];
+	const publicRoutes = getProtectedRoutes();
 	const isPublicRoute = publicRoutes.some((route) =>
 		request.nextUrl.pathname.startsWith(route),
 	);
@@ -35,12 +36,12 @@ export async function proxy(request: NextRequest) {
 	// 3. Logica di reindirizzamento
 	if (!session && !isPublicRoute) {
 		// Utente non loggato cerca di accedere a una pagina privata -> via al login
-		return NextResponse.redirect(new URL("/login", request.url));
+		return NextResponse.redirect(new URL(ROUTES.login.path, request.url));
 	}
 
 	if (session && isPublicRoute) {
 		// Utente già loggato cerca di accedere a /login -> via alla dashboard
-		return NextResponse.redirect(new URL("/", request.url));
+		return NextResponse.redirect(new URL(ROUTES.home.path, request.url));
 	}
 
 	return NextResponse.next();

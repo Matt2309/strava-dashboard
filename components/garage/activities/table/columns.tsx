@@ -1,8 +1,9 @@
 "use client";
 
-import type { Row } from "@tanstack/react-table";
-import { ColumnDef } from "@tanstack/react-table";
-import { Activity, formatDate, formatMovingTime } from "@/lib";
+import type { ColumnDef, Row } from "@tanstack/react-table";
+import { MoreHorizontal } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -11,9 +12,8 @@ import {
 	DropdownMenuLabel,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { MoreHorizontal } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { type Activity, formatDate, formatMovingTime } from "@/lib";
+import { ROUTES } from "@/lib/routes";
 
 function ActionsCell({ row }: { row: Row<Partial<Activity>> }) {
 	const router = useRouter();
@@ -30,7 +30,11 @@ function ActionsCell({ row }: { row: Row<Partial<Activity>> }) {
 				<DropdownMenuGroup>
 					<DropdownMenuLabel>Actions</DropdownMenuLabel>
 					<DropdownMenuItem
-						onClick={() => router.push(`/activity/${row.original.id}`)}
+						onClick={() =>
+							router.push(
+								ROUTES["activity-detail"].build(String(row.original.id)),
+							)
+						}
 					>
 						Activity details
 					</DropdownMenuItem>
