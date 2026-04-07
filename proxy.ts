@@ -1,51 +1,48 @@
-import { betterFetch } from "@better-fetch/fetch";
-import type { Session } from "better-auth/types";
 import { type NextRequest, NextResponse } from "next/server";
-import { API_ROUTES, getProtectedRoutes, ROUTES } from "@/lib/routes";
+import {API_ROUTES, RouteAccess, ROUTES} from "@/lib/routes";
+import {match} from "path-to-regexp";
+import {auth} from "@/lib/auth";
+import {headers} from "next/headers";
 
-export async function proxy(request: NextRequest) {
-	// --- 1. BYPASS PER I WEBHOOK E LE API ESTERNE ---
-	// Se la chiamata arriva da Strava, lasciala passare immediatamente
-	// senza controllare le sessioni o fare fetch interni.
-	if (request.nextUrl.pathname.startsWith(API_ROUTES["strava-webhook"].path)) {
-		return NextResponse.next();
-	}
+export const proxy = async (request: NextRequest) => {
+    const { pathname } = new URL(request.url);
+    // --- 1. BYPASS PER I WEBHOOK E LE API ESTERNE ---
+    // Se la chiamata arriva da Strava, lasciala passare immediatamente
+    // senza controllare le sessioni o fare fetch interni.
+    if (request.nextUrl.pathname.startsWith(API_ROUTES["strava-webhook"].path)) {
+        return NextResponse.next();
+    }
 
-	// 2. Definisci le rotte pubbliche che non richiedono login
-	const publicRoutes = getProtectedRoutes();
-	const isPublicRoute = publicRoutes.some((route) =>
-		request.nextUrl.pathname.startsWith(route),
-	);
+    const matchedRoute = Object.values(ROUTES).find((route) => {
+        const matcher = match(route.path, {
+            decode: decodeURIComponent,
+        });
 
-	const baseURL = process.env.INTERNAL_FETCH_URL || request.nextUrl.origin;
+        return matcher(pathname);
+    });
 
-	// Inserisci un try/catch per evitare crash futuri se il fetch fallisce
-	let session: Session | null = null;
-	try {
-		const { data } = await betterFetch<Session>("/api/auth/get-session", {
-			baseURL,
-			headers: {
-				cookie: request.headers.get("cookie") || "",
-			},
-		});
-		session = data;
-	} catch (error) {
-		console.error("Errore fetch sessione nel proxy:", error);
-	}
+    if (!matchedRoute) {
+        return NextResponse.rewrite(new URL(ROUTES["not-found"].path, request.url));
+    }
 
-	// 3. Logica di reindirizzamento
-	if (!session && !isPublicRoute) {
-		// Utente non loggato cerca di accedere a una pagina privata -> via al login
-		return NextResponse.redirect(new URL(ROUTES.login.path, request.url));
-	}
+    const session = await auth.api.getSession({
+        headers: await headers(),
+    });
 
-	if (session && isPublicRoute) {
-		// Utente già loggato cerca di accedere a /login -> via alla dashboard
-		return NextResponse.redirect(new URL(ROUTES.home.path, request.url));
-	}
+    const accessType = matchedRoute.access;
 
-	return NextResponse.next();
-}
+    if (accessType === RouteAccess.PRIVATE && !session) {
+        return NextResponse.redirect(
+            new URL(ROUTES.login.path, request.url),
+        );
+    }
+
+    if (accessType === RouteAccess.PROTECTED && session) {
+        return NextResponse.redirect(
+            new URL(ROUTES.home.path, request.url),
+        );
+    }
+};
 
 // 4. Configura il matcher
 export const config = {
@@ -58,6 +55,6 @@ export const config = {
 		 * - _next/image (image optimization files)
 		 * - favicon.ico (favicon file)
 		 */
-		"/((?!api/auth|api/strava/webhook|_next/static|_next/image|favicon.ico).*)",
+		"/((?!api/auth|api/strava/webhook||api/rpc|_next/static|_next/image|favicon.ico).*)",
 	],
 };
