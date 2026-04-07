@@ -68,7 +68,7 @@ export const columns: ColumnDef<Partial<Activity>>[] = [
 		accessorKey: "moving_time",
 		header: () => <div className="font-bold">Moving Time</div>,
 		cell: ({ row }) => {
-			const moving_time: number = row.getValue("distance");
+			const moving_time: number = row.getValue("moving_time");
 			const movingTime = formatMovingTime(moving_time);
 			return <div className="font-medium">{movingTime}</div>;
 		},

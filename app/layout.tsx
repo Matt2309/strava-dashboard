@@ -39,7 +39,7 @@ export default function RootLayout({
 					disableTransitionOnChange
 				>
 					<ErrorBoundary>
-						<div className="flex fixed top-4 right-4 z-100">
+						<div className="flex fixed top-4 right-4 z-50">
 							<ThemeToggle />
 						</div>
 						<TanstackProvider>{children}</TanstackProvider>

@@ -17,9 +17,9 @@ export function formatMovingTime(movingTimeInSeconds: number): string {
 	if (minutes > 0) {
 		parts.push(`${minutes}m`);
 	}
-	if (seconds > 0 && hours === 0) {
-		parts.push(`${seconds.toFixed(2)}s`);
-	}
+    if (seconds > 0 && hours === 0) {
+        parts.push(`${Math.round(seconds)}s`);
+    }
 
 	return parts.join(" ");
 }
