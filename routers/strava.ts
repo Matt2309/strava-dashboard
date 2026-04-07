@@ -58,13 +58,9 @@ export const exportToToon = os
 	.callable();
 
 export const isStravaConnected = os
-	.input(
-		z.object({
-			userId: z.string(),
-		}),
-	)
-	.handler(async ({ input }) => {
-		return await isStravaConnectedServ(input.userId);
+	.handler(async () => {
+        const userId = await getUserIdFromSession();
+		return await isStravaConnectedServ(userId);
 	})
 	.use(errorHandlerMiddleware)
 	.callable();
