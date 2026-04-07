@@ -23,16 +23,19 @@ const data = {
 			name: "Garage",
 			url: ROUTES.garage.path,
 			icon: LucideWrench,
+            wip: false,
 		},
 		{
 			name: "Blueprints",
 			url: "#",
 			icon: Timer,
+            wip: true,
 		},
 		{
 			name: "Engine room",
 			url: "#",
 			icon: Dumbbell,
+            wip: true,
 		},
 	],
 };

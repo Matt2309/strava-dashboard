@@ -10,6 +10,7 @@ import {
 import Link from "next/link";
 import type React from "react";
 import {usePathname} from "next/navigation";
+import {Construction} from "lucide-react";
 
 export function NavMain({
 	items,
@@ -18,6 +19,7 @@ export function NavMain({
 		name: string;
 		url: string;
 		icon?: React.ComponentType<{ className?: string }>;
+        wip?: boolean
 	}[];
 }) {
     const pathname = usePathname()
@@ -31,6 +33,12 @@ export function NavMain({
                                 <Link href={item.url} className="flex flex-row items-center gap-2">
                                     {item.icon && <item.icon />}
                                     <span>{item.name}</span>
+                                    {item.wip &&
+                                        <div className="text-yellow-500 flex flex-row items-center gap-1 text-xs">
+                                            <span>Work in progress</span>
+                                            <Construction className="size-4"/>
+                                        </div>
+                                    }
                                 </Link>
                             </SidebarMenuButton>
                         </SidebarMenuItem>
