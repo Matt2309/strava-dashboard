@@ -27,7 +27,7 @@ export const auth = betterAuth({
 					clientSecret: process.env.STRAVA_CLIENT_SECRET ?? "",
 					authorizationUrl: "https://www.strava.com/oauth/authorize",
 					tokenUrl: "https://www.strava.com/oauth/token",
-					scopes: ["read,activity:read_all"],
+					scopes: ["read,activity:read,profile:read_all"],
 					authorizationUrlParams: {
 						approval_prompt: "auto",
 					},

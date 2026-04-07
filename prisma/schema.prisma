@@ -11,15 +11,19 @@ datasource db {
 }
 
 model User {
-  id            String    @id
-  name          String
-  email         String    @unique
-  emailVerified Boolean   @default(false)
-  image         String?
-  createdAt     DateTime
-  updatedAt     DateTime
-  sessions      Session[]
-  accounts      Account[]
+  id             String           @id
+  name           String
+  email          String           @unique
+  emailVerified  Boolean          @default(false)
+  image          String?
+  createdAt      DateTime
+  updatedAt      DateTime
+  sessions       Session[]
+  accounts       Account[]
+  GearFunctional GearFunctional[]
+  GearDevice     GearDevice[]
+  Activity       Activity[]
+  UserStatistics UserStatistics[]
 }
 
 model Session {
@@ -35,20 +39,20 @@ model Session {
 }
 
 model Account {
-  id                   String    @id
-  accountId            String
-  providerId           String
-  userId               String
-  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accessToken          String?
-  refreshToken         String?
-  idToken              String?
-  accessTokenExpiresAt DateTime?
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
   refreshTokenExpiresAt DateTime?
-  scope                String?
-  password             String?
-  createdAt            DateTime
-  updatedAt            DateTime
+  scope                 String?
+  password              String?
+  createdAt             DateTime
+  updatedAt             DateTime
 }
 
 model Verification {
@@ -58,4 +62,119 @@ model Verification {
   expiresAt  DateTime
   createdAt  DateTime?
   updatedAt  DateTime?
+}
+
+// --- ENUMS ---
+enum FunctionalType {
+  ROAD_SHOE // Road shoes
+  TRACK_SHOE // Nailed shoe (structure)
+  SPIKES_PINS // shoe tacks
+  BIKE // Bicycles
+  OTHER
+}
+
+enum DeviceType {
+  SMARTWATCH
+  PHONE
+  HR_MONITOR
+}
+
+model GearFunctional {
+  id       String         @id @default(cuid())
+  stravaId String?        @unique
+  name     String
+  type     FunctionalType
+  distance Float          @default(0)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Self-relation
+  // Allows to link a set of spikes (child) to a spiked shoe (parent)
+  parentId String?
+  parent   GearFunctional?  @relation("ShoeSpikes", fields: [parentId], references: [id], onDelete: SetNull)
+  children GearFunctional[] @relation("ShoeSpikes")
+
+  activities Activity[] @relation("ActivityFunctional")
+
+  // Specific relation to link this gear as "spikes" to activities that used it as such
+  activitiesAsSpikes Activity[] @relation("ActivitySpikes")
+
+  @@map("gear_functionals")
+}
+
+model GearDevice {
+  id   String     @id @default(cuid())
+  name String
+  type DeviceType
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  activities Activity[]
+
+  @@map("gear_devices")
+}
+
+model Activity {
+  id                 String   @id @default(cuid()) // Internal ID
+  stravaId           String   @unique
+  name               String
+  distance           Float // Meters
+  movingTime         Int // Seconds
+  elapsedTime        Int // Seconds
+  totalElevationGain Float // Meters
+  type               String // Ex. "Run", "Ride"
+  sportType          String // Ex. "TrackRun", "TrailRun"
+  startDate          DateTime // ISO 8601 translated to DateTime
+  averageHeartrate   Float?
+  sufferScore        Float?
+
+  // Compliance fields
+  rawJson   Json?    // Raw Strava API response; nullified after 7 days
+  isPurged  Boolean  @default(false) // True once rawJson has been purged
+  createdAt DateTime @default(now()) // When this record was synced
+
+  // user relationship
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Gear relationships
+  functionalId   String?
+  functionalGear GearFunctional? @relation("ActivityFunctional", fields: [functionalId], references: [id], onDelete: SetNull)
+
+  deviceId String?
+  device   GearDevice? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  // Spike relationship (specific to track activities)
+  spikesId String?
+  spikes   GearFunctional? @relation("ActivitySpikes", fields: [spikesId], references: [id], onDelete: SetNull)
+
+  @@map("activities")
+}
+
+model UserStatistics {
+  id String @id @default(cuid())
+
+  sport_name   String
+  terrain_type String
+
+  total_distance_km Float @default(0)
+  total_time_min    Int   @default(0) // Stored in seconds (field name is misleading; do not convert)
+  total_elevation_m Int   @default(0)
+  sessions_count    Int   @default(0)
+
+  // Records
+  max_distance_km Float @default(0)
+  max_elevation_m Int   @default(0)
+
+  // Timestamps
+  last_activity_date DateTime
+  updated_at         DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sport_name, terrain_type])
+  @@map("user_statistics")
 }

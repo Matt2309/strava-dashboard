@@ -1,5 +1,10 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+	return twMerge(clsx(inputs));
+}
+
 export function formatMovingTime(movingTimeInSeconds: number): string {
 	const hours = Math.floor(movingTimeInSeconds / 3600);
 	const minutes = Math.floor((movingTimeInSeconds % 3600) / 60);
@@ -12,9 +17,9 @@ export function formatMovingTime(movingTimeInSeconds: number): string {
 	if (minutes > 0) {
 		parts.push(`${minutes}m`);
 	}
-	if (seconds > 0 && hours === 0) {
-		parts.push(`${seconds}s`);
-	}
+    if (seconds > 0 && hours === 0) {
+        parts.push(`${Math.round(seconds)}s`);
+    }
 
 	return parts.join(" ");
 }
@@ -38,8 +43,4 @@ export function formatDate(dateString: string): string {
 		month: "long",
 		day: "numeric",
 	});
-}
-
-export function cn(...inputs: ClassValue[]) {
-	return twMerge(clsx(inputs));
 }

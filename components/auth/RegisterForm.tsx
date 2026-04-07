@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
+import { ROUTES } from "@/lib/routes";
 
 export function RegisterForm() {
 	const router = useRouter();
@@ -25,14 +26,14 @@ export function RegisterForm() {
 			name,
 			email,
 			password,
-			callbackURL: "/",
+			callbackURL: ROUTES.home.path,
 		});
 
 		if (signUpError) {
 			setError(signUpError.message ?? "Registration failed. Please try again.");
 			setLoading(false);
 		} else {
-			router.push("/");
+			router.push(ROUTES.home.path);
 		}
 	};
 
@@ -87,7 +88,7 @@ export function RegisterForm() {
 			<p className="text-center text-sm text-muted-foreground">
 				Already have an account?{" "}
 				<Link
-					href="/login"
+					href={ROUTES.login.path}
 					className="underline underline-offset-4 hover:text-primary"
 				>
 					Sign in
