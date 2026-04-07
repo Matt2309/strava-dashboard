@@ -37,7 +37,7 @@ async function getAccessTokenForUser(userId: string): Promise<string> {
 	// Token expired — refresh it
 	const response = await fetch("https://www.strava.com/oauth/token", {
 		method: "POST",
-		headers: { "Content-Type": "application/json" },
+		headers: { "Content-Type": "application/x-www-form-urlencoded" },
 		body: JSON.stringify({
 			client_id: process.env.STRAVA_CLIENT_ID,
 			client_secret: process.env.STRAVA_CLIENT_SECRET,
