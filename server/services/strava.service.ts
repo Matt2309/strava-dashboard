@@ -19,11 +19,11 @@ import {
 	countActivitiesByUserId,
 	deleteActivityByStravaId,
 	findActivitiesByUserId,
-	upsertActivity,
 } from "@/server/repositories/activity.repository";
 import { upsertGearFunctional } from "@/server/repositories/gear.repository";
 import {
 	type AthleteTotals,
+	applyStatisticsDelta,
 	seedStatisticsFromAthleteStats,
 	subtractStatistics,
 	upsertStatistics,
@@ -255,37 +255,136 @@ export async function runInitialSync(userId: string): Promise<void> {
 
 /**
  * Save a Strava activity object to the DB and update UserStatistics.
+ *
+ * This function is idempotent:
+ * - First insert: applies full statistics delta and increments sessions_count
+ * - Subsequent calls (updates): computes delta between old and new values,
+ *   applies only the difference, does NOT increment sessions_count
+ * - Sport type changes: subtracts from old category, adds to new category
+ *
+ * Uses a transaction to prevent race conditions between concurrent webhook
+ * events or initial sync racing with webhooks.
  */
 async function persistStravaActivity(
 	userId: string,
 	activity: Activity,
 ): Promise<void> {
-	const { sportName, terrainType } = categorizeSportType(activity.sport_type);
+	const stravaId = String(activity.id);
+	const { sportName: newSportName, terrainType: newTerrainType } =
+		categorizeSportType(activity.sport_type);
 
-	await upsertActivity({
-		stravaId: String(activity.id),
-		name: activity.name,
-		distance: activity.distance,
-		movingTime: activity.moving_time,
-		elapsedTime: activity.elapsed_time,
-		totalElevationGain: activity.total_elevation_gain,
-		type: activity.type,
-		sportType: activity.sport_type,
-		startDate: new Date(activity.start_date),
-		averageHeartrate: activity.average_heartrate,
-		sufferScore: activity.suffer_score,
-		rawJson: activity as unknown as Prisma.InputJsonValue,
-		userId,
+	await prisma.$transaction(async (tx) => {
+		// 1. Check if activity already exists
+		const existing = await tx.activity.findUnique({
+			where: { stravaId },
+			select: {
+				distance: true,
+				movingTime: true,
+				totalElevationGain: true,
+				sportType: true,
+				startDate: true,
+			},
+		});
+
+		// 2. Upsert the activity record
+		await tx.activity.upsert({
+			where: { stravaId },
+			create: {
+				stravaId,
+				name: activity.name,
+				distance: activity.distance,
+				movingTime: activity.moving_time,
+				elapsedTime: activity.elapsed_time,
+				totalElevationGain: activity.total_elevation_gain,
+				type: activity.type,
+				sportType: activity.sport_type,
+				startDate: new Date(activity.start_date),
+				averageHeartrate: activity.average_heartrate,
+				sufferScore: activity.suffer_score,
+				rawJson: activity as unknown as Prisma.InputJsonValue,
+				userId,
+			},
+			update: {
+				name: activity.name,
+				distance: activity.distance,
+				movingTime: activity.moving_time,
+				elapsedTime: activity.elapsed_time,
+				totalElevationGain: activity.total_elevation_gain,
+				type: activity.type,
+				sportType: activity.sport_type,
+				startDate: new Date(activity.start_date),
+				averageHeartrate: activity.average_heartrate,
+				sufferScore: activity.suffer_score,
+				rawJson: activity as unknown as Prisma.InputJsonValue,
+			},
+		});
+
+		// 3. Update statistics based on whether this is a new or existing activity
+		if (!existing) {
+			// New activity: apply full statistics and increment sessions_count
+			await upsertStatistics(userId, newSportName, newTerrainType, {
+				distanceMeters: activity.distance,
+				movingTimeSeconds: activity.moving_time,
+				elevationGainMeters: activity.total_elevation_gain,
+				startDate: new Date(activity.start_date),
+			});
+		} else {
+			// Existing activity: compute and apply delta
+			const { sportName: oldSportName, terrainType: oldTerrainType } =
+				categorizeSportType(existing.sportType);
+
+			const sportCategoryChanged =
+				oldSportName !== newSportName || oldTerrainType !== newTerrainType;
+
+			if (sportCategoryChanged) {
+				// Sport type changed: subtract from old category, add to new category
+				// Subtract old values from old category (including decrementing sessions_count)
+				await subtractStatistics(userId, oldSportName, oldTerrainType, {
+					distanceMeters: existing.distance,
+					movingTimeSeconds: existing.movingTime,
+					elevationGainMeters: existing.totalElevationGain,
+					startDate: existing.startDate,
+				});
+
+				// Add new values to new category (including incrementing sessions_count)
+				await upsertStatistics(userId, newSportName, newTerrainType, {
+					distanceMeters: activity.distance,
+					movingTimeSeconds: activity.moving_time,
+					elevationGainMeters: activity.total_elevation_gain,
+					startDate: new Date(activity.start_date),
+				});
+			} else {
+				// Same sport category: apply only the delta (no sessions_count change)
+				const delta = {
+					distanceMeters: activity.distance - existing.distance,
+					movingTimeSeconds: activity.moving_time - existing.movingTime,
+					elevationGainMeters:
+						activity.total_elevation_gain - existing.totalElevationGain,
+					startDate: new Date(activity.start_date),
+				};
+
+				// Only apply delta if there are actual changes
+				if (
+					delta.distanceMeters !== 0 ||
+					delta.movingTimeSeconds !== 0 ||
+					delta.elevationGainMeters !== 0
+				) {
+					await applyStatisticsDelta(
+						userId,
+						newSportName,
+						newTerrainType,
+						delta,
+						{
+							distanceMeters: activity.distance,
+							elevationGainMeters: activity.total_elevation_gain,
+						},
+					);
+				}
+			}
+		}
 	});
 
-	await upsertStatistics(userId, sportName, terrainType, {
-		distanceMeters: activity.distance,
-		movingTimeSeconds: activity.moving_time,
-		elevationGainMeters: activity.total_elevation_gain,
-		startDate: new Date(activity.start_date),
-	});
-
-	// Update gear distance if activity has associated gear
+	// Update gear distance if activity has associated gear (outside transaction for simplicity)
 	if (activity.gear) {
 		await upsertGearFunctional({
 			stravaId: activity.gear.id,
