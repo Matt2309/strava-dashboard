@@ -1,5 +1,4 @@
 import { Bike, Smartphone, SportShoe, Watch } from "lucide-react";
-import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	Progress,

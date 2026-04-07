@@ -147,10 +147,11 @@ if (!parsed.success) {
 ```
 
 ### Environment Variables
-All environment variables are **validated via Zod** in `lib/env.ts`:
+Environment variables are currently read directly from `process.env` in application code; there is no central `lib/env.ts` validator:
 ```typescript
-import { env } from "@/lib/env";
-// Use env.STRAVA_CLIENT_ID, env.DATABASE_URL, etc.
+const clientId = process.env.STRAVA_CLIENT_ID;
+const databaseUrl = process.env.DATABASE_URL;
+// Validate required values at the point of use when needed.
 ```
 
 Required variables (see `.env.example`):
