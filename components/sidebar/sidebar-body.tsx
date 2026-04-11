@@ -33,7 +33,7 @@ const data = {
 		},
 		{
 			name: "Engine room",
-			url: "#",
+			url: ROUTES["engine-room"].path,
 			icon: Dumbbell,
 			wip: true,
 		},
