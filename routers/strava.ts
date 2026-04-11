@@ -59,7 +59,7 @@ export const exportToToon = os
 
 export const isStravaConnected = os
 	.handler(async () => {
-        const userId = await getUserIdFromSession();
+		const userId = await getUserIdFromSession();
 		return await isStravaConnectedServ(userId);
 	})
 	.use(errorHandlerMiddleware)

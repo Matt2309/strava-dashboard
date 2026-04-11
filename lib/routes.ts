@@ -4,7 +4,7 @@ export type RouteName =
 	| "login"
 	| "register"
 	| "activity-detail"
-    | "not-found";
+	| "not-found";
 
 export type ApiRouteName = "auth" | "rpc" | "strava-webhook";
 
@@ -48,14 +48,14 @@ export const ROUTES = {
 		access: RouteAccess.PRIVATE,
 	},
 	"activity-detail": {
-		path: "/activity/:id",
+		path: "/garage/activity/:id",
 		access: RouteAccess.PRIVATE,
-		build: (id: string) => `/activity/${id}`,
+		build: (id: string) => `/garage/activity/${id}`,
 	},
-    "not-found": {
-        path: "/not-found",
-        access: RouteAccess.PUBLIC,
-    },
+	"not-found": {
+		path: "/not-found",
+		access: RouteAccess.PUBLIC,
+	},
 } as const satisfies Record<RouteName, RouteConfig>;
 
 export const API_ROUTES = {

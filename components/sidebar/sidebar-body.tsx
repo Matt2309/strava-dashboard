@@ -23,19 +23,19 @@ const data = {
 			name: "Garage",
 			url: ROUTES.garage.path,
 			icon: LucideWrench,
-            wip: false,
+			wip: false,
 		},
 		{
 			name: "Blueprints",
 			url: "#",
 			icon: Timer,
-            wip: true,
+			wip: true,
 		},
 		{
 			name: "Engine room",
 			url: "#",
 			icon: Dumbbell,
-            wip: true,
+			wip: true,
 		},
 	],
 };
@@ -43,16 +43,18 @@ const data = {
 export function SidebarBody({
 	...props
 }: React.ComponentProps<typeof Sidebar>) {
-    const router = useRouter();
+	const router = useRouter();
 	return (
 		<Sidebar collapsible="offcanvas" {...props}>
 			<SidebarHeader>
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<SidebarMenuButton
-                            className="data-[slot=sidebar-menu-button]:p-1.5! flex flex-col items-start leading-2 p-5"
-                            onClick={() => {router.push(ROUTES.home.path)}}
-                        >
+							className="data-[slot=sidebar-menu-button]:p-1.5! flex flex-col items-start leading-2 p-5"
+							onClick={() => {
+								router.push(ROUTES.home.path);
+							}}
+						>
 							<div className="flex flex-col leading-2">
 								<span className="font-black tracking-tighter uppercase mb-2">
 									Dromos Studio
