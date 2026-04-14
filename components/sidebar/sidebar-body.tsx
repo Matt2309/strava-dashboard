@@ -1,6 +1,7 @@
 "use client";
 
 import { Dumbbell, LucideWrench, Timer } from "lucide-react";
+import { useRouter } from "next/navigation";
 import type * as React from "react";
 import { NavMain } from "@/components/sidebar/nav-main";
 import { NavUser } from "@/components/sidebar/nav-user";
@@ -14,7 +15,6 @@ import {
 	SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { ROUTES } from "@/lib/routes";
-import { useRouter } from "next/navigation";
 
 // This is sample data.
 const data = {

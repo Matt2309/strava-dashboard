@@ -1,12 +1,12 @@
+import type {
+	CompleteSetInput,
+	CreatePlanInput,
+	EndWorkoutInput,
+	SwapExerciseInput,
+} from "@/lib/schemas/engine-room.schema";
+import { exerciseRepository } from "@/server/repositories/exercise.repository";
 import { workoutPlanRepository } from "@/server/repositories/workout-plan.repository";
 import { workoutSessionRepository } from "@/server/repositories/workout-session.repository";
-import { exerciseRepository } from "@/server/repositories/exercise.repository";
-import type {
-	CreatePlanInput,
-	CompleteSetInput,
-	SwapExerciseInput,
-	EndWorkoutInput,
-} from "@/lib/schemas/engine-room.schema";
 
 export class EngineRoomService {
 	async getUserPlans(userId: string) {
@@ -27,7 +27,8 @@ export class EngineRoomService {
 
 	async startWorkout(userId: string, dayId: string) {
 		// Get the day with all exercises
-		const day = await workoutSessionRepository.getWorkoutDayWithExercises(dayId);
+		const day =
+			await workoutSessionRepository.getWorkoutDayWithExercises(dayId);
 
 		if (!day || day.plan.userId !== userId) {
 			throw new Error("Day not found or unauthorized");

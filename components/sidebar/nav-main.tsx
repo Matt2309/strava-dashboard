@@ -1,5 +1,9 @@
 "use client";
 
+import { Construction } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import type React from "react";
 import {
 	SidebarGroup,
 	SidebarGroupContent,
@@ -7,10 +11,6 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import Link from "next/link";
-import type React from "react";
-import { usePathname } from "next/navigation";
-import { Construction } from "lucide-react";
 
 export function NavMain({
 	items,

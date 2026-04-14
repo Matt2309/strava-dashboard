@@ -2,14 +2,14 @@ import { os } from "@orpc/server";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { errorHandlerMiddleware } from "@/routers/middlewares/error-handler";
 import {
-	createPlanSchema,
 	completeSetSchema,
-	swapExerciseSchema,
+	createPlanSchema,
 	endWorkoutSchema,
 	getExercisesSchema,
+	swapExerciseSchema,
 } from "@/lib/schemas/engine-room.schema";
+import { errorHandlerMiddleware } from "@/routers/middlewares/error-handler";
 import { engineRoomService } from "@/server/services/engine-room.service";
 
 async function getUserIdFromSession(): Promise<string> {

@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import type {
 	CompleteSetInput,
-	SwapExerciseInput,
 	EndWorkoutInput,
+	SwapExerciseInput,
 } from "@/lib/schemas/engine-room.schema";
 
 export class WorkoutSessionRepository {

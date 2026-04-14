@@ -1,6 +1,6 @@
 import { os } from "@orpc/server";
-import { stravaRouter } from "@/routers/strava";
 import { engineRoomRouter } from "@/routers/engine-room";
+import { stravaRouter } from "@/routers/strava";
 
 export const appRouter = os.router({
 	strava: stravaRouter,

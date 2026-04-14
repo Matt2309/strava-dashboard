@@ -5,7 +5,8 @@ import { z } from "zod";
 export const createPlanSchema = z.object({
 	name: z.string().min(1, "Plan name required"),
 	type: z.string().min(1, "Plan type required"),
-	expiryDate: z.date().nullable().optional(),
+    durationWeeks: z.coerce.number().int().min(1, "Duration must be at least 1 week"),
+    expiryDate: z.date().nullable().optional(),
 	days: z.array(
 		z.object({
 			name: z.string().min(1, "Day name required"),
@@ -16,7 +17,7 @@ export const createPlanSchema = z.object({
 					exerciseId: z.string().min(1, "Exercise required"),
 					alternativeExerciseId: z.string().optional(),
 					order: z.number().int().min(1),
-					restTime: z.number().int().optional(),
+					restTime: z.coerce.number().int().optional(),
 					supersetId: z.string().optional(),
 					supersetOrder: z.number().int().optional(),
 					coachNotes: z.string().optional(),
@@ -25,7 +26,7 @@ export const createPlanSchema = z.object({
 					equipmentSetting2: z.string().optional(),
 					reps: z.array(
 						z.object({
-							setNumber: z.number().int().min(1),
+							setNumber: z.coerce.number().int().min(1),
 							targetReps: z.string().optional(),
 							targetRpe: z.number().optional(),
 							weight: z.number().optional(),
@@ -38,7 +39,8 @@ export const createPlanSchema = z.object({
 	),
 });
 
-export type CreatePlanInput = z.infer<typeof createPlanSchema>;
+export type CreatePlanInput = z.input<typeof createPlanSchema>;
+export type CreatePlanOutput = z.infer<typeof createPlanSchema>;
 
 export const getPlanDetailsSchema = z.object({
 	planId: z.string().min(1),

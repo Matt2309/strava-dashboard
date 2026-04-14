@@ -1,8 +1,8 @@
+import { headers } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
-import { API_ROUTES, RouteAccess, ROUTES } from "@/lib/routes";
 import { match } from "path-to-regexp";
 import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { API_ROUTES, ROUTES, RouteAccess } from "@/lib/routes";
 
 export const proxy = async (request: NextRequest) => {
 	const { pathname } = new URL(request.url);

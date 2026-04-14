@@ -4,7 +4,7 @@ export type RouteName =
 	| "login"
 	| "register"
 	| "activity-detail"
-    | "engine-room"
+	| "engine-room"
 	| "not-found";
 
 export type ApiRouteName = "auth" | "rpc" | "strava-webhook";
@@ -53,10 +53,10 @@ export const ROUTES = {
 		access: RouteAccess.PRIVATE,
 		build: (id: string) => `/garage/activity/${id}`,
 	},
-    "engine-room": {
-        path: "/engine-room",
-        access: RouteAccess.PRIVATE,
-    },
+	"engine-room": {
+		path: "/engine-room",
+		access: RouteAccess.PRIVATE,
+	},
 	"not-found": {
 		path: "/not-found",
 		access: RouteAccess.PUBLIC,
