@@ -1,18 +1,26 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-	// Enable standalone output for optimized Docker deployments
-	// This generates a .next/standalone directory with only necessary files
-	// Reduces image size and improves security by excluding unused dependencies
-	output: "standalone",
+import type { NextConfig } from "next";
 
-	async rewrites() {
-		return [
-			{
-				source: "/api/orpc/:path*",
-				destination: "/api/orpc",
-			},
-		];
-	},
+const nextConfig: NextConfig = {
+    output: "standalone",
+
+    images: {
+        remotePatterns: [
+            {
+                protocol: "https",
+                hostname: "cdn.jsdelivr.net",
+                pathname: "/**",
+            },
+        ],
+    },
+
+    async rewrites() {
+        return [
+            {
+                source: "/api/orpc/:path*",
+                destination: "/api/orpc",
+            },
+        ];
+    },
 };
 
 export default nextConfig;
