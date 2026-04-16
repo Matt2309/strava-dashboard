@@ -14,10 +14,16 @@ import {
 	createPlanSchema,
 } from "@/lib/schemas/engine-room.schema";
 import DayContent from "@/components/forms/create-plan/day-content";
+import {useCreatePlan} from "@/hooks/use-engine-room";
+import {toast} from "sonner";
+import {useRouter} from "next/navigation";
+import {ROUTES} from "@/lib/routes";
 
 export function CreateProgramForm() {
 	const [activeDay, setActiveDay] = useState(0);
 	const [dayCount, setDayCount] = useState(1);
+    const mutation = useCreatePlan();
+    const router = useRouter();
 
 	const form = useForm<CreatePlanInput, any, CreatePlanOutput>({
 		resolver: zodResolver(createPlanSchema),
@@ -39,7 +45,7 @@ export function CreateProgramForm() {
 		name: "days",
 	});
 
-	function onSubmit(data: CreatePlanOutput) {
+    async function onSubmit(data: CreatePlanOutput) {
         //expiry date
         let calculatedExpiryDate = null;
 
@@ -52,11 +58,28 @@ export function CreateProgramForm() {
         }
 
         // 3. Prepariamo il payload pulito per il backend
-        const finalPayload = {
+        const finalPayload: CreatePlanOutput = {
             ...data,
             expiryDate: calculatedExpiryDate,
         };
-		console.log(finalPayload);
+
+
+        await mutation.mutateAsync(
+            finalPayload,
+            {
+                onSuccess() {
+                    toast.success(
+                        `Plan created succefully`,
+                    );
+                    router.push(ROUTES["engine-room"].path)
+                },
+                onError(error) {
+                    toast.error(
+                        `Error creating plan: ${error}`,
+                    );
+                },
+            },
+        );
 	}
 
 	function onReset() {

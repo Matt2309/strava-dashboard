@@ -1,9 +1,11 @@
+import { Dumbbell, Plus, Trash2 } from "lucide-react";
 import { type Control, Controller, useFieldArray } from "react-hook-form";
-import type { CreatePlanInput } from "@/lib/schemas/engine-room.schema";
+
+import ExerciseSelect from "@/components/forms/create-plan/exercise-select";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Dumbbell, Plus, Trash2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import type { CreatePlanInput } from "@/lib/schemas/engine-room.schema";
 
 export default function DayContent({
 	control,
@@ -70,18 +72,13 @@ export default function DayContent({
 									name={`days.${dayIndex}.exercises.${exerciseIndex}.exerciseId`}
 									control={control}
 									render={({ field, fieldState }) => (
-										<Field data-invalid={fieldState.invalid}>
-											<FieldLabel className="text-xs">EXERCISE NAME</FieldLabel>
-											<Input
-												{...field}
-												placeholder="Deficit Deadlift"
-												className="bg-input text-foreground border-border"
-												aria-invalid={fieldState.invalid}
-											/>
-											{fieldState.invalid && (
-												<FieldError errors={[fieldState.error]} />
-											)}
-										</Field>
+										<ExerciseSelect
+											value={field.value}
+											onChange={field.onChange}
+											onBlur={field.onBlur}
+											invalid={fieldState.invalid}
+											error={fieldState.error}
+										/>
 									)}
 								/>
 							</div>

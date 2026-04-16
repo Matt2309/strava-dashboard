@@ -70,12 +70,15 @@ export const useEndWorkout = () => {
 const getExercisesProcedure = orpcClient.engineRoom.getExercises;
 export const useGetExercises = (
 	muscleGroupId?: string,
-	options?: { enabled?: boolean },
+	options?: { enabled?: boolean; search?: string },
 ) => {
 	return useQuery(
 		getExercisesProcedure.queryOptions({
-			input: { muscleGroupId: muscleGroupId || "" },
-			enabled: !!muscleGroupId && options?.enabled !== false,
+			input: {
+				muscleGroupId: muscleGroupId || "",
+				search: options?.search || "",
+			},
+			enabled: options?.enabled !== false,
 		}),
 	);
 };
