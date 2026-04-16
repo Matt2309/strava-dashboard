@@ -1,35 +1,20 @@
-"use client";
+import { getPlanDetails } from "@/routers/engine-room";
+import {BackButton} from "@/components/buttons/back-button";
 
-import { useParams, useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { useGetPlanDetails } from "@/hooks/use-engine-room";
+interface PlanPreviewPageProps {
+    params: Promise<{ planId: string }>;
+}
 
-export default function PlanPreviewPage() {
-	const router = useRouter();
-	const params = useParams();
-	const planId = params.planId as string;
+export default async function PlanPreviewPage({ params }: PlanPreviewPageProps) {
+    const resolvedParams = await params;
+    const planId = resolvedParams.planId;
 
-	const { data: plan, isLoading, isError } = useGetPlanDetails(planId);
+    const plan = await getPlanDetails({planId});
 
-	if (isLoading)
-		return (
-			<div className="p-6">
-				<p>Loading...</p>
-			</div>
-		);
-	if (isError || !plan)
-		return (
-			<div className="p-6">
-				<p>Error</p>
-			</div>
-		);
-
-	return (
-		<div className="space-y-8 p-6">
-			<Button onClick={() => router.back()} variant="ghost" size="sm">
-				Back
-			</Button>
-			<h1 className="text-4xl font-black text-white">{plan.name}</h1>
-		</div>
-	);
+    return (
+        <div className="space-y-8 p-6">
+            <BackButton/>
+            <h1 className="text-4xl font-black">{plan?.name}</h1>
+        </div>
+    );
 }

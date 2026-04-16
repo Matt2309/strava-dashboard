@@ -2,7 +2,6 @@
 
 import {
 	AlertCircle,
-	ArrowLeftIcon,
 	CalendarIcon,
 	ClockIcon,
 	GaugeIcon,
@@ -11,7 +10,6 @@ import {
 	TrendingUpIcon,
 	ZapIcon,
 } from "lucide-react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -24,10 +22,9 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-// Import your new hooks here (adjust the path based on your folder structure)
 import { useExportToToon, useGetActivity } from "@/hooks/use-strava";
-import { ROUTES } from "@/lib/routes";
 import { calculatePace, formatDate, formatMovingTime } from "@/lib/utils";
+import {BackButton} from "@/components/buttons/back-button";
 
 export default function ActivityPage() {
 	const params = useParams();
@@ -126,10 +123,10 @@ export default function ActivityPage() {
 	return (
 		<div className="p-4">
 			<header className="flex items-center justify-between mb-4">
-				<Link href={ROUTES.home.path} className="flex items-center">
-					<ArrowLeftIcon className="w-5 h-5 mr-2" />
+				<div className="flex items-center gap-2">
+					<BackButton/>
 					<h1 className="text-2xl font-bold">Activity Details</h1>
-				</Link>
+				</div>
 				<Button onClick={handleExport} disabled={exportToToon.isPending}>
 					{exportToToon.isPending ? "Exporting..." : "Export to TOON"}
 				</Button>

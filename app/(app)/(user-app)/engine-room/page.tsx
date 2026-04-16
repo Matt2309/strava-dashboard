@@ -1,14 +1,7 @@
-import { RedirectButton } from "@/components/redirect-button";
+import { RedirectButton } from "@/components/buttons/redirect-button";
 import { SiteHeader } from "@/components/sidebar/site-header";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
-import { formatDate } from "@/lib/utils";
 import { getPlans } from "@/routers/engine-room";
+import PlanCard from "@/components/engine-room/index/plan-card";
 
 export default async function EngineRoomHomePage() {
 	const plans = await getPlans();
@@ -32,50 +25,12 @@ export default async function EngineRoomHomePage() {
 						{plans && plans.length > 0 ? (
 							<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 								{plans.map((plan) => (
-									<Card
-										key={plan.id}
-										className="bg-neutral-900 cursor-pointer hover:bg-neutral-800 transition group"
-									>
-										<div className="relative w-full h-48 bg-gradient-to-br from-neutral-800 to-neutral-900 overflow-hidden">
-											<div className="absolute inset-0 flex items-center justify-center">
-												<div className="text-center">
-													<p className="text-xs font-bold tracking-widest text-neutral-400 uppercase mb-2">
-														{plan.type}
-													</p>
-													<p className="text-lg font-black text-white">
-														PROGRAM
-													</p>
-												</div>
-											</div>
-										</div>
-
-										<CardHeader className="bg-neutral-800">
-											<CardTitle className="text-lg tracking-tight">
-												{plan.name}
-											</CardTitle>
-											<CardDescription className="text-xs">
-												{plan.expiryDate && (
-													<p className="mt-1">
-														Expires:{" "}
-														{formatDate(
-															typeof plan.expiryDate === "string"
-																? plan.expiryDate
-																: plan.expiryDate.toISOString(),
-														)}
-													</p>
-												)}
-											</CardDescription>
-										</CardHeader>
-
-										<CardContent className="space-y-2">
-											<RedirectButton
-												url={`/engine-room/${plan.id}`}
-												className="w-full"
-												text={"START WORKOUT"}
-												variant={"secondary"}
-											></RedirectButton>
-										</CardContent>
-									</Card>
+									<PlanCard type={plan.type}
+                                              name={plan.name}
+                                              expiryDate={plan.expiryDate}
+                                              id={plan.id}
+                                              key={plan.id}
+                                    />
 								))}
 							</div>
 						) : (
