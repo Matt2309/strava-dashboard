@@ -85,7 +85,7 @@ export function EquipmentCard({ gear, variant }: EquipmentCardProps) {
 			<CardContent>
 				<CardTitle className="text-2xl font-bold">{gear.name}</CardTitle>
 				{isFunctional && (
-					<Progress value={progressValue} className="w-full max-w-sm mt-10">
+					<Progress value={progressValue} className="w-full mt-10">
 						<ProgressLabel className="text-sm text-muted-foreground">
 							ODOMETER
 						</ProgressLabel>

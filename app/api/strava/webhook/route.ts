@@ -42,7 +42,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-	// Respond 200 immediately to prevent Strava from retrying the delivery
 	const body: unknown = await request.json().catch(() => null);
 
 	// Parse the event — if invalid, still return 200 so Strava doesn't retry
@@ -51,10 +50,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 		return NextResponse.json({ received: true }, { status: 200 });
 	}
 
-	// Process asynchronously without blocking the response
-	processWebhookEvent(parsed.data).catch((err: unknown) => {
+	// Await processing so the runtime does not drop the work after response.
+	try {
+		await processWebhookEvent(parsed.data);
+	} catch (err: unknown) {
 		console.error("[Strava Webhook] Failed to process event", err);
-	});
+	}
 
 	return NextResponse.json({ received: true }, { status: 200 });
 }

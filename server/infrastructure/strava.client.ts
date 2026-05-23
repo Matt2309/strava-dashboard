@@ -19,53 +19,61 @@ export class StravaClientError extends Error {
  * there is no active HTTP session.
  */
 async function getAccessTokenForUser(userId: string): Promise<string> {
-	const account = await prisma.account.findFirst({
-		where: { userId, providerId: "strava" },
-	});
+    const account = await prisma.account.findFirst({
+        where: { userId, providerId: "strava" },
+    });
 
-	if (!account?.accessToken || !account.refreshToken) {
-		throw new StravaClientError("Strava account not connected", 401);
-	}
+    if (!account?.accessToken || !account.refreshToken || !account.accessTokenExpiresAt) {
+        throw new StravaClientError("Strava account not connected or missing tokens", 401);
+    }
 
-	if (
-		account.accessTokenExpiresAt &&
-		account.accessTokenExpiresAt > new Date()
-	) {
-		return account.accessToken;
-	}
+    // 1. Aggiungiamo un buffer di 5 minuti (300.000 ms) per evitare scadenze "in volo"
+    const bufferTime = 5 * 60 * 1000;
+    const isTokenValid = account.accessTokenExpiresAt.getTime() > (Date.now() + bufferTime);
 
-	// Token expired — refresh it
-	const response = await fetch("https://www.strava.com/oauth/token", {
-		method: "POST",
-		headers: { "Content-Type": "application/x-www-form-urlencoded" },
-		body: JSON.stringify({
-			client_id: process.env.STRAVA_CLIENT_ID,
-			client_secret: process.env.STRAVA_CLIENT_SECRET,
-			grant_type: "refresh_token",
-			refresh_token: account.refreshToken,
-		}),
-	});
+    if (isTokenValid) {
+        return account.accessToken;
+    }
 
-	if (!response.ok) {
-		throw new StravaClientError("Failed to refresh Strava token", 401);
-	}
+    // Token expired (o in scadenza) — refresh it
+    const refreshBody = new URLSearchParams({
+        client_id: process.env.STRAVA_CLIENT_ID ?? "",
+        client_secret: process.env.STRAVA_CLIENT_SECRET ?? "",
+        grant_type: "refresh_token",
+        refresh_token: account.refreshToken,
+    });
 
-	const data = (await response.json()) as {
-		access_token: string;
-		refresh_token: string;
-		expires_at: number;
-	};
+    const response = await fetch("https://www.strava.com/oauth/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: refreshBody.toString(),
+    });
 
-	await prisma.account.update({
-		where: { id: account.id },
-		data: {
-			accessToken: data.access_token,
-			refreshToken: data.refresh_token,
-			accessTokenExpiresAt: new Date(data.expires_at * 1000),
-		},
-	});
+    // 2. Gestione errori migliorata per il debugging
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Strava refresh error for user ${userId}:`, errorText);
 
-	return data.access_token;
+        throw new StravaClientError("Failed to refresh Strava token", 401);
+    }
+
+    const data = (await response.json()) as {
+        access_token: string;
+        refresh_token: string;
+        expires_at: number;
+    };
+
+    // 3. Aggiornamento nel database
+    await prisma.account.update({
+        where: { id: account.id },
+        data: {
+            accessToken: data.access_token,
+            refreshToken: data.refresh_token,
+            accessTokenExpiresAt: new Date(data.expires_at * 1000),
+        },
+    });
+
+    return data.access_token;
 }
 
 export interface StravaFetchResult<T> {

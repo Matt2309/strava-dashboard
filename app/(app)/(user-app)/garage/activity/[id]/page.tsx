@@ -123,10 +123,10 @@ export default function ActivityPage() {
 	return (
 		<div className="p-4">
 			<header className="flex items-center justify-between mb-4">
-				<div className="flex items-center gap-2">
-					<BackButton/>
-					<h1 className="text-2xl font-bold">Activity Details</h1>
-				</div>
+                <div className={"flex items-center gap-4"}>
+                    <BackButton />
+                    <h1 className="text-2xl font-bold">Activity Details</h1>
+                </div>
 				<Button onClick={handleExport} disabled={exportToToon.isPending}>
 					{exportToToon.isPending ? "Exporting..." : "Export to TOON"}
 				</Button>

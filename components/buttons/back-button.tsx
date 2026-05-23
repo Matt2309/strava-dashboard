@@ -10,8 +10,8 @@ interface BackButtonProps {
 }
 
 export function BackButton({
-                                className,
-                            }: BackButtonProps) {
+                               className,
+                           }: BackButtonProps) {
     const router = useRouter();
 
     const handleBack = () => {

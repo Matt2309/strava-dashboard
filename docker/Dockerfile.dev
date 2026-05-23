@@ -9,33 +9,31 @@ FROM node:${NODE_VERSION}-alpine
 
 RUN apk add --no-cache bash openssl3 libc6-compat
 
-# Enable Corepack globally to manage pnpm without manual installation
-RUN npm install -g corepack@latest && corepack enable
+# Corepack setup for pnpm (fixed version for better stability)
+RUN npm install -g corepack@latest && \
+    corepack enable && \
+    corepack prepare pnpm@10.33.0 --activate
 
 WORKDIR /app
 
-# Copy package manager configuration and lock files
+# Configuration file copying
 COPY package.json pnpm-lock.yaml* .npmrc* ./
 
-# Install dependencies from lockfile for reproducible builds
-# Development install includes devDependencies needed for building
-RUN pnpm install --frozen-lockfile
+# Tell pnpm to soft-fail on missing built dependencies.
+RUN pnpm config set only-built-dependencies-soft-fail true && \
+    pnpm install --frozen-lockfile
 
-# Copy Prisma schema if it exists and generate the client
-# This is needed even in dev for type hints and the Prisma Client
+# Prisma schema copying
 COPY prisma ./prisma
 
 RUN if [ -d prisma ]; then \
-      npx prisma generate; \
+      pnpm prisma generate; \
     fi
 
-# Set environment variables for development
+# Envs
 ENV NODE_ENV=development
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Expose Next.js default port (docker-compose will map it)
 EXPOSE 3000
 
-# Run Next.js development server with hot-reload support
-# Docker Compose volumes will enable file watching and HMR
 CMD ["pnpm", "dev"]
