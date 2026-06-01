@@ -8,92 +8,108 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
 import { ROUTES } from "@/lib/routes";
+import {Checkbox} from "@/components/ui/checkbox";
 
 export function RegisterForm() {
-	const router = useRouter();
-	const [name, setName] = useState("");
-	const [email, setEmail] = useState("");
-	const [password, setPassword] = useState("");
-	const [error, setError] = useState<string | null>(null);
-	const [loading, setLoading] = useState(false);
+    const router = useRouter();
+    const [name, setName] = useState("");
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [policyAccepted, setPolicyAccepted] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
 
-	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-		e.preventDefault();
-		setLoading(true);
-		setError(null);
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (!policyAccepted) return;
 
-		const { error: signUpError } = await authClient.signUp.email({
-			name,
-			email,
-			password,
-			callbackURL: ROUTES.home.path,
-		});
+        setLoading(true);
+        setError(null);
 
-		if (signUpError) {
-			setError(signUpError.message ?? "Registration failed. Please try again.");
-			setLoading(false);
-		} else {
-			router.push(ROUTES.home.path);
-		}
-	};
+        const { error: signUpError } = await authClient.signUp.email({
+            name,
+            email,
+            password,
+            callbackURL: ROUTES.home.path,
+        });
 
-	return (
-		<div className="flex flex-col gap-6">
-			<form onSubmit={handleSubmit} className="flex flex-col gap-4">
-				{error && (
-					<p className="text-sm text-destructive text-center">{error}</p>
-				)}
-				<div className="flex flex-col gap-2">
-					<Label htmlFor="name">Name</Label>
-					<Input
-						id="name"
-						type="text"
-						placeholder="Your name"
-						value={name}
-						onChange={(e) => setName(e.target.value)}
-						required
-						autoComplete="name"
-					/>
-				</div>
-				<div className="flex flex-col gap-2">
-					<Label htmlFor="email">Email</Label>
-					<Input
-						id="email"
-						type="email"
-						placeholder="you@example.com"
-						value={email}
-						onChange={(e) => setEmail(e.target.value)}
-						required
-						autoComplete="email"
-					/>
-				</div>
-				<div className="flex flex-col gap-2">
-					<Label htmlFor="password">Password</Label>
-					<Input
-						id="password"
-						type="password"
-						placeholder="••••••••"
-						value={password}
-						onChange={(e) => setPassword(e.target.value)}
-						required
-						autoComplete="new-password"
-						minLength={8}
-					/>
-				</div>
-				<Button type="submit" className="w-full" disabled={loading}>
-					{loading ? "Creating account…" : "Create account"}
-				</Button>
-			</form>
+        if (signUpError) {
+            setError(signUpError.message ?? "Registration failed. Please try again.");
+            setLoading(false);
+        } else {
+            router.push(ROUTES.home.path);
+        }
+    };
 
-			<p className="text-center text-sm text-muted-foreground">
-				Already have an account?{" "}
-				<Link
-					href={ROUTES.login.path}
-					className="underline underline-offset-4 hover:text-primary"
-				>
-					Sign in
-				</Link>
-			</p>
-		</div>
-	);
+    return (
+        <div className="flex flex-col gap-6">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                {error && (
+                    <p className="text-sm text-destructive text-center">{error}</p>
+                )}
+                <div className="flex flex-col gap-2">
+                    <Label htmlFor="name">Name</Label>
+                    <Input
+                        id="name"
+                        type="text"
+                        placeholder="Your name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required
+                        autoComplete="name"
+                    />
+                </div>
+                <div className="flex flex-col gap-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                        id="email"
+                        type="email"
+                        placeholder="you@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        autoComplete="email"
+                    />
+                </div>
+                <div className="flex flex-col gap-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                        id="password"
+                        type="password"
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        autoComplete="new-password"
+                        minLength={8}
+                    />
+                </div>
+
+                <div className="flex items-center space-x-2 pt-2">
+                    <Checkbox
+                        id="terms"
+                        checked={policyAccepted}
+                        onCheckedChange={(checked) => setPolicyAccepted(checked)}
+                    />
+                    <Label htmlFor="terms" className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        I have read and accept the <Link href="/privacy-policy" target="_blank" className="text-primary underline underline-offset-4 hover:text-primary/80">Privacy Policy</Link>
+                    </Label>
+                </div>
+
+                <Button type="submit" className="w-full mt-2" disabled={loading || !policyAccepted}>
+                    {loading ? "Creating account…" : "Create account"}
+                </Button>
+            </form>
+
+            <p className="text-center text-sm text-muted-foreground">
+                Already have an account?{" "}
+                <Link
+                    href={ROUTES.login.path}
+                    className="underline underline-offset-4 hover:text-primary"
+                >
+                    Sign in
+                </Link>
+            </p>
+        </div>
+    );
 }

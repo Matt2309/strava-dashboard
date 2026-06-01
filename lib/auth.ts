@@ -18,6 +18,42 @@ export const auth = betterAuth({
 			clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
 		},
 	},
+    user: {
+        additionalFields: {
+            privacyConsentTimestamp: {
+                type: "date",
+                required: false,
+            },
+            privacyPolicyId: {
+                type: "string",
+                required: false,
+            }
+        }
+    },
+
+    databaseHooks: {
+        user: {
+            create: {
+                before: async (user) => {
+                    const activePolicy = await prisma.privacyPolicy.findFirst({
+                        where: { isActive: true },
+                        orderBy: {
+                            publishedAt: 'desc'
+                        }
+                    })
+
+
+                    return {
+                        data: {
+                            ...user,
+                            privacyPolicyId: activePolicy?.id || null,
+                            privacyConsentTimestamp: new Date(),
+                        }
+                    };
+                }
+            }
+        }
+    },
 	plugins: [
 		genericOAuth({
 			config: [

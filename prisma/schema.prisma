@@ -29,10 +29,8 @@ model User {
   privacyConsentTimestamp DateTime?
 
   // Relations to track which privacy policy version the user has accepted
-  acceptedPolicyId String?
-  acceptedPolicy   PrivacyPolicy? @relation("UserAcceptedPolicy", fields: [acceptedPolicyId], references: [id])
-  PrivacyPolicy    PrivacyPolicy? @relation(fields: [privacyPolicyId], references: [id])
-  privacyPolicyId  String?
+  PrivacyPolicy   PrivacyPolicy? @relation(fields: [privacyPolicyId], references: [id])
+  privacyPolicyId String?
 }
 
 model Session {
@@ -195,6 +193,5 @@ model PrivacyPolicy {
   isActive    Boolean  @default(false) // Only one version can be active at a time
   publishedAt DateTime @default(now())
 
-  acceptedBy User[] @relation("UserAcceptedPolicy")
-  User       User[]
+  User User[]
 }
