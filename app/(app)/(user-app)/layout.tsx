@@ -6,6 +6,8 @@ import { SidebarWrapper } from "@/components/providers/sidebar-wrapper";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { auth } from "@/lib/auth";
 import { isStravaConnected } from "@/routers/strava";
+import {isUserAcceptedLastPolicy} from "@/routers/compliance";
+import {PolicyUpdateWall} from "@/components/legal/policy-update-wall";
 
 type UserAppLayoutProps = Readonly<{
     children: ReactNode;
@@ -19,6 +21,11 @@ const UserAppLayout = async (props: UserAppLayoutProps) => {
     }
 
     const stravaConnected = await isStravaConnected({ userId: session.user.id });
+    const isLastPolicyAccepted = await isUserAcceptedLastPolicy();
+
+    if (!isLastPolicyAccepted) {
+        return <PolicyUpdateWall/>;
+    }
 
     if (!stravaConnected) {
         return (

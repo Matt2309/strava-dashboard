@@ -11,3 +11,47 @@ export async function getLatestPolicy() {
         }
     })
 }
+
+/**
+ * Update the user's acceptance of the privacy policy.
+ * @param userId - The ID of the user.
+ * @param policyId - The ID of the accepted policy.
+ */
+export async function updatePolicyAcceptance(userId: string, policyId: string) {
+    return prisma.user.update({
+        where: { id: userId },
+        data: {
+            privacyPolicyId: policyId,
+            privacyConsentTimestamp: new Date()
+        }
+    })
+}
+
+/**
+ * Check if the user has accepted the latest active privacy policy.
+ * @param userId - The ID of the user.
+ * @returns True if compliant, false otherwise.
+ */
+export async function checkUserPolicyCompliance(userId: string) {
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+            privacyPolicyId: true,
+            privacyConsentTimestamp: true
+        }
+    });
+
+    if (!user) {
+        throw new Error("User not found");
+    }
+
+    const activePolicy = await getLatestPolicy();
+
+    if (!activePolicy) {
+        // No active policy, consider compliant
+        return true;
+    }
+
+    // User is compliant if they have accepted the active policy
+    return user.privacyPolicyId === activePolicy.id;
+}
