@@ -4,8 +4,9 @@ export type RouteName =
 	| "login"
 	| "register"
 	| "activity-detail"
-    | "privacy-policy"
-    | "not-found";
+	| "privacy-policy"
+	| "terms-conditions"
+	| "not-found";
 
 export type ApiRouteName = "auth" | "rpc" | "strava-webhook";
 
@@ -53,14 +54,18 @@ export const ROUTES = {
 		access: RouteAccess.PRIVATE,
 		build: (id: string) => `/activity/${id}`,
 	},
-    "privacy-policy": {
-        path: "/privacy-policy",
-        access: RouteAccess.PUBLIC,
-    },
-    "not-found": {
-        path: "/not-found",
-        access: RouteAccess.PUBLIC,
-    },
+	"privacy-policy": {
+		path: "/privacy-policy",
+		access: RouteAccess.PUBLIC,
+	},
+	"terms-conditions": {
+		path: "/terms-conditions",
+		access: RouteAccess.PUBLIC,
+	},
+	"not-found": {
+		path: "/not-found",
+		access: RouteAccess.PUBLIC,
+	},
 } as const satisfies Record<RouteName, RouteConfig>;
 
 export const API_ROUTES = {

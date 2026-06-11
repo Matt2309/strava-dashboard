@@ -18,49 +18,62 @@ export const auth = betterAuth({
 			clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
 		},
 	},
-    account: {
-        accountLinking: {
-            enabled: true,
-            trustedProviders: ["strava"],
-            allowDifferentEmails: true,
-        }
-    },
-    user: {
-        additionalFields: {
-            privacyConsentTimestamp: {
-                type: "date",
-                required: false,
-            },
-            privacyPolicyId: {
-                type: "string",
-                required: false,
-            }
-        }
-    },
+	account: {
+		accountLinking: {
+			enabled: true,
+			trustedProviders: ["strava"],
+			allowDifferentEmails: true,
+		},
+	},
+	user: {
+		additionalFields: {
+			privacyConsentTimestamp: {
+				type: "date",
+				required: false,
+			},
+			privacyPolicyId: {
+				type: "string",
+				required: false,
+			},
+			termsConsentTimestamp: {
+				type: "date",
+				required: false,
+			},
+			termsConditionsId: {
+				type: "string",
+				required: false,
+			},
+		},
+	},
 
-    databaseHooks: {
-        user: {
-            create: {
-                before: async (user) => {
-                    const activePolicy = await prisma.privacyPolicy.findFirst({
-                        where: { isActive: true },
-                        orderBy: {
-                            publishedAt: 'desc'
-                        }
-                    })
+	databaseHooks: {
+		user: {
+			create: {
+				before: async (user) => {
+					const [activePolicy, activeTerms] = await Promise.all([
+						prisma.privacyPolicy.findFirst({
+							where: { isActive: true },
+							orderBy: { publishedAt: "desc" },
+						}),
+						prisma.termsConditions.findFirst({
+							where: { isActive: true },
+							orderBy: { publishedAt: "desc" },
+						}),
+					]);
 
-
-                    return {
-                        data: {
-                            ...user,
-                            privacyPolicyId: activePolicy?.id || null,
-                            privacyConsentTimestamp: new Date(),
-                        }
-                    };
-                }
-            }
-        }
-    },
+					return {
+						data: {
+							...user,
+							privacyPolicyId: activePolicy?.id || null,
+							privacyConsentTimestamp: new Date(),
+							termsConditionsId: activeTerms?.id || null,
+							termsConsentTimestamp: new Date(),
+						},
+					};
+				},
+			},
+		},
+	},
 	plugins: [
 		genericOAuth({
 			config: [

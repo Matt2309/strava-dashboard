@@ -27,10 +27,13 @@ model User {
 
   // Compliance fields
   privacyConsentTimestamp DateTime?
+  termsConsentTimestamp   DateTime?
 
-  // Relations to track which privacy policy version the user has accepted
-  PrivacyPolicy   PrivacyPolicy? @relation(fields: [privacyPolicyId], references: [id])
-  privacyPolicyId String?
+  // Relations to track which legal document version the user has accepted
+  PrivacyPolicy     PrivacyPolicy?   @relation(fields: [privacyPolicyId], references: [id])
+  privacyPolicyId   String?
+  TermsConditions   TermsConditions? @relation(fields: [termsConditionsId], references: [id])
+  termsConditionsId String?
 }
 
 model Session {
@@ -189,6 +192,16 @@ model UserStatistics {
 model PrivacyPolicy {
   id          String   @id @default(uuid())
   version     String   @unique // Example: "1.0", "1.1", "2.0"
+  content     String   @db.Text // Text in Markdown format
+  isActive    Boolean  @default(false) // Only one version can be active at a time
+  publishedAt DateTime @default(now())
+
+  User User[]
+}
+
+model TermsConditions {
+  id          String   @id @default(uuid())
+  version     String   @unique
   content     String   @db.Text // Text in Markdown format
   isActive    Boolean  @default(false) // Only one version can be active at a time
   publishedAt DateTime @default(now())
