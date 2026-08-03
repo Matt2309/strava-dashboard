@@ -98,6 +98,8 @@ Key models: `User`, `Account`, `Session`, `Activity`, `GearFunctional`, `GearDev
 
 `server/infrastructure/strava.client.ts` — `fetchStravaForUser` refreshes the token automatically (with a 5-minute expiry buffer) before making any Strava API call.
 
+`Account.accessToken`/`refreshToken`/`idToken` are encrypted at rest (AES-256-GCM, `ENCRYPTION_KEY`) via a Prisma `$extends` query extension (`lib/prisma-extensions/account-token-encryption.ts`) applied to the client exported from `lib/prisma.ts` — encryption/decryption is transparent to every call site, including better-auth's own reads/writes (it uses the same client). Legacy plaintext rows (no `enc:v1:` prefix) are read through unchanged, so this required no downtime migration; `scripts/encrypt-account-tokens.ts` (`pnpm db:encrypt-tokens` / `stg-db:encrypt-tokens` / `prod-db:encrypt-tokens`) is an idempotent backfill for pre-existing rows.
+
 ### oRPC + TanStack Query
 
 Client-side queries use `@orpc/tanstack-query`. The query client is configured in `lib/query.ts` (`staleTime: 0`, `gcTime: 5 min`, max 1 retry).
@@ -110,4 +112,4 @@ Client-side queries use `@orpc/tanstack-query`. The query client is configured i
 | `.env.stg.local` | Staging DB scripts |
 | `.env.production.local` | Production Docker build and DB scripts |
 
-Required variables: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `NEXT_PUBLIC_BETTER_AUTH_URL`, `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `STRAVA_WEBHOOK_VERIFY_TOKEN`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `CRON_SECRET`. See `.env.example`.
+Required variables: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `NEXT_PUBLIC_BETTER_AUTH_URL`, `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `STRAVA_WEBHOOK_VERIFY_TOKEN`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `CRON_SECRET`, `ENCRYPTION_KEY`. See `.env.example`.

@@ -70,7 +70,7 @@
 
 | Punto | Stato | Motivazione |
 |-------|-------|-------------|
-| Encryption at rest | ❌ NON CONFORME | Nessuna crittografia a livello applicazione. `accessToken`, `refreshToken` Strava, `rawJson` (GPS+HR), email, nome — tutti in plaintext nel DB PostgreSQL |
+| Encryption at rest | ⚠️ PARZIALE | **Aggiornamento 2026-08-03**: `Account.accessToken`/`refreshToken`/`idToken` sono ora cifrati AES-256-GCM (`lib/prisma-extensions/account-token-encryption.ts`, chiave `ENCRYPTION_KEY`) in modo trasparente su ogni read/write, incluse le operazioni interne di better-auth. `rawJson`, email, nome restano in plaintext — solo i token OAuth erano nel gap #4 |
 | Encryption in transit (HTTPS/TLS) | ⚠️ SCONOSCIUTO | Dipende dall'infrastruttura di hosting; non configurato nel codice |
 | Client-side encryption | ❌ NON CONFORME | Non implementata |
 | Gestione chiavi di crittografia | ❌ NON CONFORME | Non applicabile — nessuna crittografia presente |
@@ -187,7 +187,7 @@
 | Punto | Stato | Motivazione |
 |-------|-------|-------------|
 | ID interni vs identificatori esterni | ✅ CONFORME | `User.id` (CUID interno) separato da `stravaId`, `email` |
-| Token Strava pseudonimizzati/cifrati | ❌ NON CONFORME | `accessToken`, `refreshToken` in plaintext nella tabella `Account` |
+| Token Strava pseudonimizzati/cifrati | ✅ CONFORME | **Aggiornamento 2026-08-03**: cifrati AES-256-GCM a livello di Prisma extension — vedi § 2.2 |
 | Password hash salted | ✅ CONFORME | `better-auth` usa bcrypt con salt automatico |
 
 ---
@@ -229,7 +229,7 @@
 | 1 | ~~`purgeStaleActivityData()` non viene mai chiamata~~ | ✅ RISOLTO | Implementato `GET /api/cron/purge-raw-data` (Bearer `CRON_SECRET`) invocato ogni notte da `.github/workflows/purge-raw-data.yml`. Da verificare in staging con l'esecuzione reale del workflow |
 | 2 | ~~**Nessun Right to Erasure** (Art. 17)~~ | ✅ RISOLTO | Implementato "Elimina account" nella tab utente, con conferma 2-step (digitare "ELIMINA"). Procedura oRPC `compliance.deleteAccount` (non un endpoint REST separato — segue il flusso oRPC + TanStack Query già usato nel progetto): revoca best-effort dell'autorizzazione Strava (`deauthorizeStrava` in `server/infrastructure/strava.client.ts`), poi `prisma.user.delete` (cascade Prisma fa il resto) |
 | 3 | ~~**Nessun Data Export** (Art. 15 + Art. 20)~~ | ✅ RISOLTO | Implementato "Scarica i miei dati" nella tab utente. Procedura oRPC `compliance.exportUserData` (stesso flusso oRPC + TanStack Query, nessun endpoint REST dedicato) aggrega `User`, consensi, account collegati (senza token), `Activity` (incluso `rawJson`), `GearFunctional`, `GearDevice`, `UserStatistics` in un JSON scaricato lato browser |
-| 4 | **Token OAuth Strava in plaintext nel DB** | 🔴 CRITICO | Cifrare `accessToken` e `refreshToken` con AES-256-GCM usando `ENCRYPTION_KEY` in env; decifrare al momento dell'uso |
+| 4 | ~~**Token OAuth Strava in plaintext nel DB**~~ | ✅ RISOLTO | Cifrati AES-256-GCM (`ENCRYPTION_KEY`) via Prisma `$extends` (`lib/prisma-extensions/account-token-encryption.ts`), trasparente per tutti i call site incluso better-auth. Righe legacy in plaintext restano leggibili (passthrough) — nessun downtime; backfill idempotente in `scripts/encrypt-account-tokens.ts`. Rotazione/versioning della chiave non ancora implementati (follow-up) |
 | 5 | **Google Fonts caricati da CDN Google** | 🟠 ALTO | Convertire a `next/font/local` con file font self-hosted — elimina trasferimento IP a Google |
 | 6 | **Nessun Rate Limiting** | 🟠 ALTO | Aggiungere rate limiting su `/api/auth` (login, register, reset) con `@upstash/ratelimit` o middleware Next.js |
 | 7 | **Consenso non granulare** — `averageHeartrate` è dato sanitario (Art. 9) | 🟠 ALTO | Aggiungere consenso esplicito separato per "dati biometrici/sanitari" prima di sincronizzare attività con HR |
@@ -258,7 +258,7 @@
 
 ### Settimana 3-4 (Gap alti)
 
-5. **Cifrare token OAuth**: aggiungere utility di encrypt/decrypt AES-256-GCM; wrappare il Prisma client per cifrare automaticamente `accessToken`/`refreshToken` su write, decifrare su read.
+5. ~~**Cifrare token OAuth**~~ ✅ **FATTO**: `lib/encryption.ts` (AES-256-GCM) + Prisma `$extends` (`lib/prisma-extensions/account-token-encryption.ts`) cifra `accessToken`/`refreshToken`/`idToken` su write e decifra su read, trasparente per il client condiviso con better-auth. Backfill idempotente: `scripts/encrypt-account-tokens.ts`.
 
 6. **Rate limiting**: aggiungere `middleware.ts` in root Next.js con rate limiting su `/api/auth/*` (max 10 req/min per IP) e `/api/rpc/*` (max 100 req/min per user).
 
@@ -350,7 +350,7 @@ RETENTION
 [ ] Policy di retention per tutti i dati documentata
 
 SICUREZZA
-[ ] Token OAuth Strava cifrati (AES-256-GCM)
+[x] Token OAuth Strava cifrati (AES-256-GCM) — Prisma `$extends`, backfill in `scripts/encrypt-account-tokens.ts`
 [ ] Google Fonts self-hosted (rimuovere CDN)
 [ ] Rate limiting su /api/auth/* e /api/rpc/*
 [ ] 2FA abilitato (opzionale per utenti)
