@@ -1,7 +1,4 @@
-import {
-	findActivitiesForPurge,
-	purgeActivityRawData,
-} from "@/server/repositories/activity.repository";
+import { purgeActivitiesRawDataBefore } from "@/server/repositories/activity.repository";
 
 const PURGE_AFTER_DAYS = 7;
 
@@ -17,13 +14,8 @@ const PURGE_AFTER_DAYS = 7;
  * @returns The number of activity records that were purged.
  */
 export async function purgeStaleActivityData(): Promise<number> {
-	const activities = await findActivitiesForPurge(PURGE_AFTER_DAYS);
+	const cutoff = new Date();
+	cutoff.setDate(cutoff.getDate() - PURGE_AFTER_DAYS);
 
-	let purgedCount = 0;
-	for (const activity of activities) {
-		await purgeActivityRawData(activity.id);
-		purgedCount++;
-	}
-
-	return purgedCount;
+	return purgeActivitiesRawDataBefore(cutoff);
 }

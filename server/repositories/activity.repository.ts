@@ -92,28 +92,19 @@ export async function findActivitiesByUserId(userId: string) {
 }
 
 /**
- * Find activities that were synced more than `days` days ago and have not
- * yet been purged.
+ * Nullify raw GPS / JSON data for every activity synced before `cutoff` that
+ * has not yet been purged. Aggregated statistics remain untouched.
+ * Idempotent: already-purged rows are excluded by the isPurged filter.
+ *
+ * @returns The number of activity records that were purged.
  */
-export async function findActivitiesForPurge(days: number) {
-	const cutoff = new Date();
-	cutoff.setDate(cutoff.getDate() - days);
-
-	return prisma.activity.findMany({
-		where: {
-			createdAt: { lt: cutoff },
-			isPurged: false,
-		},
-	});
-}
-
-/**
- * Nullify raw GPS / JSON data for an activity and mark it as purged.
- * The aggregated statistics remain untouched.
- */
-export async function purgeActivityRawData(id: string) {
-	return prisma.activity.update({
-		where: { id },
+export async function purgeActivitiesRawDataBefore(
+	cutoff: Date,
+): Promise<number> {
+	const { count } = await prisma.activity.updateMany({
+		where: { createdAt: { lt: cutoff }, isPurged: false },
 		data: { rawJson: Prisma.JsonNull, isPurged: true },
 	});
+
+	return count;
 }

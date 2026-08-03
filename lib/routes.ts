@@ -8,7 +8,7 @@ export type RouteName =
 	| "terms-conditions"
 	| "not-found";
 
-export type ApiRouteName = "auth" | "rpc" | "strava-webhook";
+export type ApiRouteName = "auth" | "rpc" | "strava-webhook" | "cron-purge";
 
 export enum RouteAccess {
 	PUBLIC,
@@ -79,6 +79,9 @@ export const API_ROUTES = {
 	},
 	"strava-webhook": {
 		path: "/api/strava/webhook",
+	},
+	"cron-purge": {
+		path: "/api/cron/purge-raw-data",
 	},
 } as const satisfies Record<ApiRouteName, ApiRoute>;
 
