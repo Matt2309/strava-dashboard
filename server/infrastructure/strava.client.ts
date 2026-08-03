@@ -143,3 +143,32 @@ export async function getUserIdByStravaAthleteId(
 	});
 	return account?.userId ?? null;
 }
+
+/**
+ * Revokes Dromos' Strava authorization on the user's behalf (best-effort),
+ * called before deleting a user's account (Art. 17 Right to Erasure).
+ * Never throws: if there is no connected Strava account or the Strava API
+ * call fails, it logs the error and returns false so the caller can proceed
+ * with local account deletion regardless.
+ */
+export async function deauthorizeStrava(userId: string): Promise<boolean> {
+	try {
+		const accessToken = await getAccessTokenForUser(userId);
+		const response = await fetch("https://www.strava.com/oauth/deauthorize", {
+			method: "POST",
+			headers: { Authorization: `Bearer ${accessToken}` },
+		});
+
+		if (!response.ok) {
+			console.error(
+				`Strava deauthorize failed for user ${userId}: ${response.status} ${response.statusText}`,
+			);
+			return false;
+		}
+
+		return true;
+	} catch (error) {
+		console.error(`Strava deauthorize error for user ${userId}:`, error);
+		return false;
+	}
+}

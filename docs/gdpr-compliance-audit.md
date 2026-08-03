@@ -10,11 +10,11 @@
 
 ## 1. SUMMARY TABLE
 
-| Stato | Sezioni | # Punti |
-|-------|---------|---------|
-| ✅ CONFORME | Consent flow registrazione, versioning policy, framework env vars, ORM SQL-safe, Strava token refresh, soft-purge `rawJson` (logica) | ~8 |
-| ⚠️ PARZIALE | GTM consent mode, pseudonimizzazione ID interni, password hashing (delegato a better-auth), Privacy Policy visibile, cascaded deletes | ~12 |
-| ❌ NON CONFORME | Purge mai eseguito, nessun Right to Erasure UI, nessun data export, nessun rate limiting, token OAuth in chiaro, nessun audit log, nessun 2FA, nessun DPA documentato, nessuna procedura breach | ~22 |
+| Stato | Sezioni                                                                                                                                                                                          | # Punti |
+|-------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------|
+| ✅ CONFORME | Consent flow registrazione, versioning policy, framework env vars, ORM SQL-safe, Strava token refresh, soft-purge `rawJson` (logica)                                                             | ~8 |
+| ⚠️ PARZIALE | GTM consent mode, pseudonimizzazione ID interni, password hashing (delegato a better-auth), Privacy Policy visibile, cascaded deletes                                                            | ~12 |
+| ❌ NON CONFORME | Purge mai eseg0uito, nessun Right to Erasure UI, nessun data export, nessun rate limiting, token OAuth in chiaro, nessun audit log, nessun 2FA, nessun DPA documentato, nessuna procedura breach | ~22 |
 
 **Top 3 aree forti:**
 1. Consent tracking con timestamp + versioning policy/terms
@@ -40,9 +40,9 @@
 |-------|-------|-------------|
 | Consenso esplicito (opt-in, non pre-checked) | ✅ CONFORME | `RegisterForm.tsx`: `policyAccepted` inizia `false`, checkbox unchecked, submit disabilitato finché non spuntato. `LoginForm.tsx` (Google/Strava): nessuna checkbox nel form stesso, ma il consenso viene richiesto obbligatoriamente dal `LegalConsentWall` al primo accesso post-OAuth, prima che l'utente veda qualunque contenuto |
 | Tracciato con timestamp + versione policy | ✅ CONFORME | `privacyConsentTimestamp`, `privacyPolicyId` (e i corrispettivi per `termsConditions`) salvati sul `User`; `acceptLegalDocuments` li aggiorna solo su azione esplicita dell'utente |
-| Meccanismo di REVOCA del consenso | ❌ NON CONFORME | Non esiste nessun bottone "Revoca consenso" o "Elimina account". Nessun endpoint per gestirlo |
+| Meccanismo di REVOCA del consenso | ⚠️ PARZIALE | **Aggiornamento 2026-08-03**: aggiunto "Elimina account" nella tab utente (`components/sidebar/nav-user.tsx`), che copre la revoca totale (cancellazione dell'account) via procedura oRPC `compliance.deleteAccount`. Manca ancora una revoca *parziale* granulare (es. solo analytics) senza cancellare l'intero account — vedi punto 7.1 |
 | Consenso granulare (analytics vs dati attività vs salute) | ❌ NON CONFORME | Il consenso è binario: accetti tutto o non usi l'app. `averageHeartrate` (dato sanitario) non ha consenso separato |
-| Cosa succede se l'utente revoca | ❌ NON CONFORME | Nessun flusso di revoca implementato; l'utente è intrappolato nell'app |
+| Cosa succede se l'utente revoca | ⚠️ PARZIALE | Il flusso di revoca implementato è "elimina account": `compliance.deleteAccount` revoca l'autorizzazione Strava (best-effort) e cancella permanentemente `User` (cascade Prisma su `Session`, `Account`, `Activity`, `GearFunctional`, `GearDevice`, `UserStatistics`). Non esiste un percorso di revoca che mantenga l'account attivo con trattamento ridotto |
 | Consenso raccolto prima di qualunque elaborazione dati (incl. via API/webhook) | ⚠️ PARZIALE | Il gate vive nel layout `(user-app)`, quindi copre le pagine ma non le procedure oRPC né `/api/strava/webhook`: un'attività potrebbe teoricamente essere persistita via webhook per un utente che non ha ancora attraversato il `LegalConsentWall`. Da valutare come follow-up |
 
 #### 1.2 Privacy Notice
@@ -100,10 +100,10 @@
 
 | Punto | Stato | Motivazione |
 |-------|-------|-------------|
-| L'utente può richiedere cancellazione di tutti i dati | ❌ NON CONFORME | Non esiste nessun "Delete Account" né nella UI né nelle API |
-| Cancellazione permanente | ⚠️ PARZIALE | Prisma ha `onDelete: Cascade` su tutte le relazioni — se `User` viene cancellato, tutto viene eliminato. Ma non c'è modo per l'utente di attivarlo |
-| Latenza documentata | ❌ NON CONFORME | — |
-| Procedura di verifica cancellazione | ❌ NON CONFORME | — |
+| L'utente può richiedere cancellazione di tutti i dati | ✅ CONFORME | **Aggiornamento 2026-08-03**: "Elimina account" in tab utente → procedura oRPC `compliance.deleteAccount`, con conferma a 2 step (l'utente deve digitare "ELIMINA"). Best-effort revoca anche l'autorizzazione Strava (`POST /oauth/deauthorize`) prima di cancellare |
+| Cancellazione permanente | ✅ CONFORME | Prisma `onDelete: Cascade` su `Session`, `Account`, `Activity`, `GearFunctional`, `GearDevice`, `UserStatistics` — ora effettivamente attivato da `prisma.user.delete` in `server/repositories/user.repository.ts` (`deleteUserById`), chiamato da `deleteUserAccount()` nel service. Nota: `PrivacyPolicy`/`TermsConditions` sono sul lato opposto della relazione (FK su `User`), quindi il record di consenso storico dell'utente sparisce con l'account — coerente con l'erasure ma da tenere presente se in futuro serve provare lo storico consensi anche dopo la cancellazione |
+| Latenza documentata | ❌ NON CONFORME | La cancellazione è sincrona e immediata lato codice, ma non esiste un documento che dichiari una latenza massima (es. "entro 30 giorni") come richiesto dall'Art. 12(3) per le richieste formali |
+| Procedura di verifica cancellazione | ⚠️ PARZIALE | Il redirect a `/login` post-cancellazione e l'impossibilità di autenticarsi con le stesse credenziali fungono da verifica implicita lato utente. Manca una procedura documentata/audit log che attesti la cancellazione per finalità di accountability (Art. 5(2)) |
 
 #### 3.3 Anonymizzazione
 
@@ -117,9 +117,9 @@
 
 | Diritto | Stato | Motivazione |
 |---------|-------|-------------|
-| Art. 15 — Right of Access (scarica tutti i dati) | ❌ NON CONFORME | Nessun endpoint né UI per export dati personali |
+| Art. 15 — Right of Access (scarica tutti i dati) | ✅ CONFORME | **Aggiornamento 2026-08-03**: "Scarica i miei dati" in tab utente → procedura oRPC `compliance.exportUserData`, scarica un file JSON (profilo, consensi, account collegati senza token, attività incluso `rawJson` non ancora purgato, gear, statistiche) |
 | Art. 16 — Rectification (correggi dati) | ❌ NON CONFORME | Nessuna UI di profilo per modificare nome/email visibile nel codice |
-| Art. 20 — Portability (export machine-readable) | ❌ NON CONFORME | Esiste solo `exportToToon` per una singola attività Strava — non è un export GDPR dei dati personali |
+| Art. 20 — Portability (export machine-readable) | ✅ CONFORME | Lo stesso export di cui sopra produce JSON strutturato, leggibile da macchina — soddisfa anche la portabilità, oltre a `exportToToon` che resta un export per singola attività ad uso diverso |
 | Art. 21 — Right to Object / opt-out per trattamento | ❌ NON CONFORME | Nessuna UI per gestire preferenze analytics o opt-out da specifici trattamenti. GTM consent mode è gestito solo nel codice, non dall'utente |
 
 ---
@@ -227,8 +227,8 @@
 | # | Gap | Gravità | Azione |
 |---|-----|---------|--------|
 | 1 | ~~`purgeStaleActivityData()` non viene mai chiamata~~ | ✅ RISOLTO | Implementato `GET /api/cron/purge-raw-data` (Bearer `CRON_SECRET`) invocato ogni notte da `.github/workflows/purge-raw-data.yml`. Da verificare in staging con l'esecuzione reale del workflow |
-| 2 | **Nessun Right to Erasure** (Art. 17) | 🔴 CRITICO | Implementare "Delete Account" che elimina `User` (cascades Prisma faranno il resto) con conferma 2-step |
-| 3 | **Nessun Data Export** (Art. 15 + Art. 20) | 🔴 CRITICO | Endpoint `/api/gdpr/export` che aggrega tutti i dati dell'utente in JSON e li restituisce scaricabili |
+| 2 | ~~**Nessun Right to Erasure** (Art. 17)~~ | ✅ RISOLTO | Implementato "Elimina account" nella tab utente, con conferma 2-step (digitare "ELIMINA"). Procedura oRPC `compliance.deleteAccount` (non un endpoint REST separato — segue il flusso oRPC + TanStack Query già usato nel progetto): revoca best-effort dell'autorizzazione Strava (`deauthorizeStrava` in `server/infrastructure/strava.client.ts`), poi `prisma.user.delete` (cascade Prisma fa il resto) |
+| 3 | ~~**Nessun Data Export** (Art. 15 + Art. 20)~~ | ✅ RISOLTO | Implementato "Scarica i miei dati" nella tab utente. Procedura oRPC `compliance.exportUserData` (stesso flusso oRPC + TanStack Query, nessun endpoint REST dedicato) aggrega `User`, consensi, account collegati (senza token), `Activity` (incluso `rawJson`), `GearFunctional`, `GearDevice`, `UserStatistics` in un JSON scaricato lato browser |
 | 4 | **Token OAuth Strava in plaintext nel DB** | 🔴 CRITICO | Cifrare `accessToken` e `refreshToken` con AES-256-GCM usando `ENCRYPTION_KEY` in env; decifrare al momento dell'uso |
 | 5 | **Google Fonts caricati da CDN Google** | 🟠 ALTO | Convertire a `next/font/local` con file font self-hosted — elimina trasferimento IP a Google |
 | 6 | **Nessun Rate Limiting** | 🟠 ALTO | Aggiungere rate limiting su `/api/auth` (login, register, reset) con `@upstash/ratelimit` o middleware Next.js |
@@ -250,11 +250,11 @@
 
 1. ~~**Attivare il purge `rawJson`**~~ ✅ **FATTO**: endpoint `GET /api/cron/purge-raw-data` con `Authorization: Bearer CRON_SECRET`, chiamato ogni notte da `.github/workflows/purge-raw-data.yml` (GitHub Actions). Manca ancora la verifica dell'esecuzione reale in staging.
 
-2. **Delete Account**: aggiungere route `DELETE /api/user/me` che chiama `prisma.user.delete({ where: { id: userId } })` — Prisma cascade elimina tutto. Aggiungere UI in sidebar/profilo con dialog di conferma.
+2. ~~**Delete Account**~~ ✅ **FATTO**: procedura oRPC `compliance.deleteAccount` (`prisma.user.delete` — Prisma cascade elimina tutto), con dialog di conferma a 2 step nella tab utente (`components/account/delete-account-dialog.tsx`).
 
 3. **Self-hosting Google Fonts**: scaricare i font Geist localmente, rimuovere `next/font/google`, usare `next/font/local`. Elimina trasferimento IP a Google.
 
-4. **Data Export endpoint**: `GET /api/gdpr/export` — aggrega `User`, `Activity[]`, `GearFunctional[]`, `GearDevice[]`, `UserStatistics[]`, restituisce JSON strutturato.
+4. ~~**Data Export endpoint**~~ ✅ **FATTO**: procedura oRPC `compliance.exportUserData` — aggrega `User`, consensi, account collegati (senza token), `Activity[]` (incluso `rawJson`), `GearFunctional[]`, `GearDevice[]`, `UserStatistics[]` in un JSON scaricato dalla tab utente (`components/account/export-data-dialog.tsx`).
 
 ### Settimana 3-4 (Gap alti)
 
@@ -334,13 +334,13 @@ DOCUMENTAZIONE (non codice):
 CONSENSO
 [ ] Consenso granulare per dati biometrici (Art. 9)
 [ ] Privacy Dashboard con toggle per tipo trattamento
-[ ] Flusso di revoca del consenso implementato
+[~] Flusso di revoca del consenso implementato — solo come "elimina account" (compliance.deleteAccount); manca una revoca parziale che non cancelli l'intero account
 [ ] CMP per analytics/GTM con scelta utente
 [ ] ConsentHistory table per audit trail
 
 DIRITTI UTENTE
-[ ] DELETE /api/user/me — Right to Erasure con conferma
-[ ] GET /api/gdpr/export — Right of Access + Portability (JSON)
+[x] Right to Erasure con conferma — procedura oRPC compliance.deleteAccount, UI in tab utente (non un endpoint REST separato)
+[x] Right of Access + Portability (JSON) — procedura oRPC compliance.exportUserData, UI in tab utente
 [ ] UI profilo per rettifica dati (nome, email)
 [ ] Pagina /settings/privacy operativa
 

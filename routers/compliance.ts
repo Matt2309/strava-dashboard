@@ -15,6 +15,10 @@ import {
 	getLatestTerms,
 	updateTermsAcceptance,
 } from "@/server/repositories/terms.repository";
+import {
+	deleteUserAccount,
+	exportUserData,
+} from "@/server/services/compliance.service";
 
 async function getUserIdFromSession(): Promise<string> {
 	const session = await auth.api.getSession({ headers: await headers() });
@@ -102,6 +106,33 @@ export const acceptLegalDocuments = os
 	.use(errorHandlerMiddleware)
 	.callable();
 
+/**
+ * Exports all personal data held for the current user as a single JSON
+ * envelope (Art. 15 Right of Access / Art. 20 Portability). The user is
+ * always resolved from the session — never taken from the client input —
+ * so a caller can never request another user's data.
+ */
+export const exportUserDataProcedure = os
+	.handler(async () => {
+		const userId = await getUserIdFromSession();
+		return exportUserData(userId);
+	})
+	.use(errorHandlerMiddleware)
+	.callable();
+
+/**
+ * Permanently deletes the current user's account and all related data
+ * (Art. 17 Right to Erasure). Best-effort revokes the Strava authorization
+ * first; Prisma cascades remove sessions, activities, gear and statistics.
+ */
+export const deleteAccount = os
+	.handler(async () => {
+		const userId = await getUserIdFromSession();
+		return deleteUserAccount(userId);
+	})
+	.use(errorHandlerMiddleware)
+	.callable();
+
 export const complianceRouter = os.router({
 	retrieveLatestPolicy,
 	isUserAcceptedLastPolicy,
@@ -109,4 +140,6 @@ export const complianceRouter = os.router({
 	isUserAcceptedLastTerms,
 	getLegalConsentStatus,
 	acceptLegalDocuments,
+	exportUserData: exportUserDataProcedure,
+	deleteAccount,
 });
