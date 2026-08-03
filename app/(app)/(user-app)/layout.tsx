@@ -2,16 +2,12 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { ConnectStrava } from "@/components/ConnectStrava";
+import { LegalConsentWall } from "@/components/legal/legal-consent-wall";
 import { SidebarWrapper } from "@/components/providers/sidebar-wrapper";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { auth } from "@/lib/auth";
+import { getLegalConsentStatus } from "@/routers/compliance";
 import { isStravaConnected } from "@/routers/strava";
-import {
-	isUserAcceptedLastPolicy,
-	isUserAcceptedLastTerms,
-} from "@/routers/compliance";
-import { PolicyUpdateWall } from "@/components/legal/policy-update-wall";
-import { TermsUpdateWall } from "@/components/legal/terms-update-wall";
 
 type UserAppLayoutProps = Readonly<{
 	children: ReactNode;
@@ -24,19 +20,25 @@ const UserAppLayout = async (props: UserAppLayoutProps) => {
 		redirect("/login");
 	}
 
-	const [stravaConnected, isLastPolicyAccepted, isLastTermsAccepted] =
-		await Promise.all([
-			isStravaConnected({ userId: session.user.id }),
-			isUserAcceptedLastPolicy(),
-			isUserAcceptedLastTerms(),
-		]);
+	const [stravaConnected, legalConsent] = await Promise.all([
+		isStravaConnected({ userId: session.user.id }),
+		getLegalConsentStatus(),
+	]);
 
-	if (!isLastPolicyAccepted) {
-		return <PolicyUpdateWall />;
-	}
+	const pendingDocuments = [legalConsent.policy, legalConsent.terms].filter(
+		(doc) => doc.needed,
+	);
 
-	if (!isLastTermsAccepted) {
-		return <TermsUpdateWall />;
+	if (pendingDocuments.length > 0) {
+		return (
+			<LegalConsentWall
+				needsPolicy={legalConsent.policy.needed}
+				needsTerms={legalConsent.terms.needed}
+				variant={
+					pendingDocuments.every((doc) => doc.firstTime) ? "initial" : "update"
+				}
+			/>
+		);
 	}
 
 	if (!stravaConnected) {

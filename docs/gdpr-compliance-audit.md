@@ -34,13 +34,16 @@
 
 #### 1.1 Consent Flow
 
+> **Aggiornamento 2026-08-03**: l'analisi originale copriva solo `RegisterForm.tsx` (email/password). È emerso che un utente che si registrava cliccando direttamente "Continue with Google/Strava" nel `LoginForm` (bypassando `/register`) entrava nell'app senza aver mai accettato Privacy Policy/Termini, perché `databaseHooks.user.create.before` in `lib/auth.ts` timbrava il consenso incondizionatamente per ogni nuovo utente, qualunque fosse il provider — e questo impediva anche al wall di ricomparire in seguito. **Corretto**: rimosso il timbro automatico; il consenso ora è sempre scritto esplicitamente via `acceptLegalDocuments` (router `compliance`), o dal form di registrazione dopo il check della checkbox, o dal nuovo `LegalConsentWall` mostrato ai signup OAuth (e a chi non ha ancora consentito) prima di qualunque altra pagina in `(user-app)/layout.tsx`. I 4 campi di consenso sono anche stati marcati `input: false` in `lib/auth.ts` per impedire che un client possa auto-certificarsi il consenso tramite `signUp`.
+
 | Punto | Stato | Motivazione |
 |-------|-------|-------------|
-| Consenso esplicito (opt-in, non pre-checked) | ✅ CONFORME | `RegisterForm.tsx`: `policyAccepted` inizia `false`, checkbox unchecked, submit disabilitato finché non spuntato |
-| Tracciato con timestamp + versione policy | ✅ CONFORME | `privacyConsentTimestamp`, `privacyPolicyId` salvati sul `User`; `updatePolicyAcceptance` aggiorna entrambi |
+| Consenso esplicito (opt-in, non pre-checked) | ✅ CONFORME | `RegisterForm.tsx`: `policyAccepted` inizia `false`, checkbox unchecked, submit disabilitato finché non spuntato. `LoginForm.tsx` (Google/Strava): nessuna checkbox nel form stesso, ma il consenso viene richiesto obbligatoriamente dal `LegalConsentWall` al primo accesso post-OAuth, prima che l'utente veda qualunque contenuto |
+| Tracciato con timestamp + versione policy | ✅ CONFORME | `privacyConsentTimestamp`, `privacyPolicyId` (e i corrispettivi per `termsConditions`) salvati sul `User`; `acceptLegalDocuments` li aggiorna solo su azione esplicita dell'utente |
 | Meccanismo di REVOCA del consenso | ❌ NON CONFORME | Non esiste nessun bottone "Revoca consenso" o "Elimina account". Nessun endpoint per gestirlo |
 | Consenso granulare (analytics vs dati attività vs salute) | ❌ NON CONFORME | Il consenso è binario: accetti tutto o non usi l'app. `averageHeartrate` (dato sanitario) non ha consenso separato |
 | Cosa succede se l'utente revoca | ❌ NON CONFORME | Nessun flusso di revoca implementato; l'utente è intrappolato nell'app |
+| Consenso raccolto prima di qualunque elaborazione dati (incl. via API/webhook) | ⚠️ PARZIALE | Il gate vive nel layout `(user-app)`, quindi copre le pagine ma non le procedure oRPC né `/api/strava/webhook`: un'attività potrebbe teoricamente essere persistita via webhook per un utente che non ha ancora attraversato il `LegalConsentWall`. Da valutare come follow-up |
 
 #### 1.2 Privacy Notice
 

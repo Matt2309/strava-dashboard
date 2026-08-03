@@ -1,5 +1,10 @@
 import { os } from "@orpc/server";
+import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
+import { z } from "zod";
+import { auth } from "@/lib/auth";
 import { errorHandlerMiddleware } from "@/routers/middlewares/error-handler";
+import { getUserLegalConsentStatus } from "@/server/repositories/legal-consent.repository";
 import {
 	checkUserPolicyCompliance,
 	getLatestPolicy,
@@ -10,9 +15,14 @@ import {
 	getLatestTerms,
 	updateTermsAcceptance,
 } from "@/server/repositories/terms.repository";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
-import { revalidatePath } from "next/cache";
+
+async function getUserIdFromSession(): Promise<string> {
+	const session = await auth.api.getSession({ headers: await headers() });
+	if (!session?.user?.id) {
+		throw new Error("Unauthorized: No active session");
+	}
+	return session.user.id;
+}
 
 /**
  * Retrieves the latest active privacy policy from the database.
@@ -24,32 +34,10 @@ export const retrieveLatestPolicy = os
 	.use(errorHandlerMiddleware)
 	.callable();
 
-/**
- * Update the user's privacy policy acceptance status.
- */
-export const acceptLatestPolicy = os
-	.handler(async () => {
-		const activePolicy = await getLatestPolicy();
-		if (!activePolicy) throw new Error("Nessuna policy attiva trovata");
-
-		const session = await auth.api.getSession({ headers: await headers() });
-		if (!session?.user?.id) {
-			throw new Error("Unauthorized: No active session");
-		}
-
-		await updatePolicyAcceptance(session.user.id, activePolicy.id);
-		revalidatePath("/", "layout");
-	})
-	.use(errorHandlerMiddleware)
-	.callable();
-
 export const isUserAcceptedLastPolicy = os
 	.handler(async () => {
-		const session = await auth.api.getSession({ headers: await headers() });
-		if (!session?.user?.id) {
-			throw new Error("Unauthorized: No active session");
-		}
-		return checkUserPolicyCompliance(session?.user?.id);
+		const userId = await getUserIdFromSession();
+		return checkUserPolicyCompliance(userId);
 	})
 	.use(errorHandlerMiddleware)
 	.callable();
@@ -61,38 +49,64 @@ export const retrieveLatestTerms = os
 	.use(errorHandlerMiddleware)
 	.callable();
 
-export const acceptLatestTerms = os
+export const isUserAcceptedLastTerms = os
 	.handler(async () => {
-		const activeTerms = await getLatestTerms();
-		if (!activeTerms) throw new Error("Nessun termini attivi trovati");
-
-		const session = await auth.api.getSession({ headers: await headers() });
-		if (!session?.user?.id) {
-			throw new Error("Unauthorized: No active session");
-		}
-
-		await updateTermsAcceptance(session.user.id, activeTerms.id);
-		revalidatePath("/", "layout");
+		const userId = await getUserIdFromSession();
+		return checkUserTermsCompliance(userId);
 	})
 	.use(errorHandlerMiddleware)
 	.callable();
 
-export const isUserAcceptedLastTerms = os
+/**
+ * Combined status of both legal documents for the current user, used by the
+ * user-app layout to decide whether to show the legal consent wall.
+ */
+export const getLegalConsentStatus = os
 	.handler(async () => {
-		const session = await auth.api.getSession({ headers: await headers() });
-		if (!session?.user?.id) {
-			throw new Error("Unauthorized: No active session");
+		const userId = await getUserIdFromSession();
+		return getUserLegalConsentStatus(userId);
+	})
+	.use(errorHandlerMiddleware)
+	.callable();
+
+/**
+ * Records the current user's explicit acceptance of the active privacy
+ * policy and/or terms & conditions. The documents to accept are resolved
+ * server-side (the client only signals which ones it presented and got
+ * checked) so a caller can never certify acceptance of an arbitrary id.
+ */
+export const acceptLegalDocuments = os
+	.input(
+		z.object({
+			policy: z.boolean().default(false),
+			terms: z.boolean().default(false),
+		}),
+	)
+	.handler(async ({ input }) => {
+		const userId = await getUserIdFromSession();
+
+		if (input.policy) {
+			const activePolicy = await getLatestPolicy();
+			if (!activePolicy) throw new Error("Nessuna policy attiva trovata");
+			await updatePolicyAcceptance(userId, activePolicy.id);
 		}
-		return checkUserTermsCompliance(session.user.id);
+
+		if (input.terms) {
+			const activeTerms = await getLatestTerms();
+			if (!activeTerms) throw new Error("Nessun termini attivi trovati");
+			await updateTermsAcceptance(userId, activeTerms.id);
+		}
+
+		revalidatePath("/", "layout");
 	})
 	.use(errorHandlerMiddleware)
 	.callable();
 
 export const complianceRouter = os.router({
 	retrieveLatestPolicy,
-	acceptLatestPolicy,
 	isUserAcceptedLastPolicy,
 	retrieveLatestTerms,
-	acceptLatestTerms,
 	isUserAcceptedLastTerms,
+	getLegalConsentStatus,
+	acceptLegalDocuments,
 });

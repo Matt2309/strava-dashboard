@@ -27,50 +27,29 @@ export const auth = betterAuth({
 	},
 	user: {
 		additionalFields: {
+			// These are only ever written server-side by the compliance router
+			// (see routers/compliance.ts, acceptLegalDocuments), after the user
+			// explicitly accepts via the register form or the post-login consent wall.
+			// `input: false` prevents a client from self-certifying consent through signUp.
 			privacyConsentTimestamp: {
 				type: "date",
 				required: false,
+				input: false,
 			},
 			privacyPolicyId: {
 				type: "string",
 				required: false,
+				input: false,
 			},
 			termsConsentTimestamp: {
 				type: "date",
 				required: false,
+				input: false,
 			},
 			termsConditionsId: {
 				type: "string",
 				required: false,
-			},
-		},
-	},
-
-	databaseHooks: {
-		user: {
-			create: {
-				before: async (user) => {
-					const [activePolicy, activeTerms] = await Promise.all([
-						prisma.privacyPolicy.findFirst({
-							where: { isActive: true },
-							orderBy: { publishedAt: "desc" },
-						}),
-						prisma.termsConditions.findFirst({
-							where: { isActive: true },
-							orderBy: { publishedAt: "desc" },
-						}),
-					]);
-
-					return {
-						data: {
-							...user,
-							privacyPolicyId: activePolicy?.id || null,
-							privacyConsentTimestamp: new Date(),
-							termsConditionsId: activeTerms?.id || null,
-							termsConsentTimestamp: new Date(),
-						},
-					};
-				},
+				input: false,
 			},
 		},
 	},
