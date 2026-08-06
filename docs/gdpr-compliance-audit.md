@@ -12,9 +12,9 @@
 
 | Stato | Sezioni                                                                                                                                                                                          | # Punti |
 |-------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------|
-| ✅ CONFORME | Consent flow registrazione, versioning policy, framework env vars, ORM SQL-safe, Strava token refresh, soft-purge `rawJson` (logica)                                                             | ~8 |
-| ⚠️ PARZIALE | GTM consent mode, pseudonimizzazione ID interni, password hashing (delegato a better-auth), Privacy Policy visibile, cascaded deletes                                                            | ~12 |
-| ❌ NON CONFORME | Purge mai eseg0uito, nessun Right to Erasure UI, nessun data export, token OAuth in chiaro, nessun audit log, nessun 2FA, nessun DPA documentato, nessuna procedura breach | ~21 |
+| ✅ CONFORME | Consent flow registrazione, versioning policy, framework env vars, ORM SQL-safe, Strava token refresh, soft-purge `rawJson` (logica), verifica email alla registrazione, password reset via email | ~10 |
+| ⚠️ PARZIALE | GTM consent mode, pseudonimizzazione ID interni, password hashing (delegato a better-auth), Privacy Policy visibile, cascaded deletes, 2FA opt-in (non copre l'accesso OAuth, non disponibile per account senza password) | ~13 |
+| ❌ NON CONFORME | Purge mai eseg0uito, nessun Right to Erasure UI, nessun data export, token OAuth in chiaro, nessun audit log, nessun DPA documentato, nessuna procedura breach | ~19 |
 
 **Top 3 aree forti:**
 1. Consent tracking con timestamp + versioning policy/terms
@@ -70,7 +70,7 @@
 
 | Punto | Stato | Motivazione |
 |-------|-------|-------------|
-| Encryption at rest | ⚠️ PARZIALE | **Aggiornamento 2026-08-03**: `Account.accessToken`/`refreshToken`/`idToken` sono ora cifrati AES-256-GCM (`lib/prisma-extensions/account-token-encryption.ts`, chiave `ENCRYPTION_KEY`) in modo trasparente su ogni read/write, incluse le operazioni interne di better-auth. `rawJson`, email, nome restano in plaintext — solo i token OAuth erano nel gap #4 |
+| Encryption at rest | ⚠️ PARZIALE | **Aggiornamento 2026-08-03**: `Account.accessToken`/`refreshToken`/`idToken` sono ora cifrati AES-256-GCM (`lib/prisma-extensions/account-token-encryption.ts`, chiave `ENCRYPTION_KEY`) in modo trasparente su ogni read/write, incluse le operazioni interne di better-auth. `rawJson`, email, nome restano in plaintext — solo i token OAuth erano nel gap #4. **Aggiornamento 2026-08-06**: `TwoFactor.secret`/`backupCodes` (gap #11) sono cifrati anch'essi, ma da better-auth stesso (`symmetricEncrypt` con `BETTER_AUTH_SECRET`), NON dall'estensione Prisma sopra — estenderla a quella tabella romperebbe la redemption dei backup code, perché quella query aggiorna con un `where` sul ciphertext appena letto. Conseguenza operativa: ruotare `BETTER_AUTH_SECRET` invalida ogni enrolment 2FA esistente |
 | Encryption in transit (HTTPS/TLS) | ⚠️ SCONOSCIUTO | Dipende dall'infrastruttura di hosting; non configurato nel codice |
 | Client-side encryption | ❌ NON CONFORME | Non implementata |
 | Gestione chiavi di crittografia | ❌ NON CONFORME | Non applicabile — nessuna crittografia presente |
@@ -79,7 +79,7 @@
 
 | Punto | Stato | Motivazione |
 |-------|-------|-------------|
-| 2FA/MFA | ❌ NON CONFORME | `better-auth` supporta il plugin `twoFactor` ma non è configurato in `lib/auth.ts` |
+| 2FA/MFA | ⚠️ PARZIALE | **Aggiornamento 2026-08-06**: plugin `twoFactor` di better-auth attivo in `lib/auth.ts` (TOTP + 10 codici di backup monouso), opt-in da `/settings/account` (`components/settings/two-factor-card.tsx`). Secret e backup codes cifrati at rest da better-auth con `BETTER_AUTH_SECRET`. Rate limit dedicato su `/two-factor/verify-*` (5 tentativi / 5 min, più stretto del default del plugin). PARZIALE e non CONFORME per due limiti verificati di better-auth 1.5.5: (a) il plugin intercetta solo `/sign-in/email` — un accesso via Google o Strava lo aggira completamente; (b) enable/disable/rigenera richiedono la password dell'account, quindi gli utenti registrati solo via OAuth (nessun `Account` con `providerId: "credential"`) non possono attivarlo finché non ne impostano una via `/forgot-password`. Vedi gap #11 |
 | Log degli accessi ai dati sensibili | ❌ NON CONFORME | Solo `console.error` per gli errori. Nessun access log strutturato |
 | Audit trail protetto | ❌ NON CONFORME | Non esiste |
 | Role-based access control | ❌ NON CONFORME | Nessuna distinzione admin/user nel codice; tutte le procedure sono accessibili a qualsiasi utente autenticato |
@@ -101,7 +101,7 @@
 | Punto | Stato | Motivazione |
 |-------|-------|-------------|
 | L'utente può richiedere cancellazione di tutti i dati | ✅ CONFORME | **Aggiornamento 2026-08-03**: "Elimina account" in tab utente → procedura oRPC `compliance.deleteAccount`, con conferma a 2 step (l'utente deve digitare "ELIMINA"). Best-effort revoca anche l'autorizzazione Strava (`POST /oauth/deauthorize`) prima di cancellare |
-| Cancellazione permanente | ✅ CONFORME | Prisma `onDelete: Cascade` su `Session`, `Account`, `Activity`, `GearFunctional`, `GearDevice`, `UserStatistics` — ora effettivamente attivato da `prisma.user.delete` in `server/repositories/user.repository.ts` (`deleteUserById`), chiamato da `deleteUserAccount()` nel service. Nota: `PrivacyPolicy`/`TermsConditions` sono sul lato opposto della relazione (FK su `User`), quindi il record di consenso storico dell'utente sparisce con l'account — coerente con l'erasure ma da tenere presente se in futuro serve provare lo storico consensi anche dopo la cancellazione |
+| Cancellazione permanente | ✅ CONFORME | Prisma `onDelete: Cascade` su `Session`, `Account`, `Activity`, `GearFunctional`, `GearDevice`, `UserStatistics` — ora effettivamente attivato da `prisma.user.delete` in `server/repositories/user.repository.ts` (`deleteUserById`), chiamato da `deleteUserAccount()` nel service. Nota: `PrivacyPolicy`/`TermsConditions` sono sul lato opposto della relazione (FK su `User`), quindi il record di consenso storico dell'utente sparisce con l'account — coerente con l'erasure ma da tenere presente se in futuro serve provare lo storico consensi anche dopo la cancellazione. **Aggiornamento 2026-08-06**: `TwoFactor` (gap #11) aggiunta alla lista in cascade (`onDelete: Cascade`). `Verification` — usata dal cookie 2FA e dal cookie "fidati di questo dispositivo", entrambi keyed su `value = userId`, ma senza FK verso `User` per design — viene ora svuotata esplicitamente per l'utente (`deleteUserById`) prima della `user.delete`, altrimenti sarebbe sopravvissuta fino a 30 giorni con l'id dell'utente cancellato |
 | Latenza documentata | ❌ NON CONFORME | La cancellazione è sincrona e immediata lato codice, ma non esiste un documento che dichiari una latenza massima (es. "entro 30 giorni") come richiesto dall'Art. 12(3) per le richieste formali |
 | Procedura di verifica cancellazione | ✅ CONFORME | **Aggiornamento 2026-08-06**: oltre al redirect a `/login` (verifica implicita lato utente), `deleteUserAccount` registra un evento `ACCOUNT_DELETED` in `AuditLog` prima della cancellazione, poi pseudonimizza (hash SHA-256) l'intera audit trail dell'utente — prova interna, verificabile a posteriori, che l'erasure è avvenuta e quando (Art. 5(2) accountability) |
 
@@ -117,7 +117,7 @@
 
 | Diritto | Stato | Motivazione |
 |---------|-------|-------------|
-| Art. 15 — Right of Access (scarica tutti i dati) | ✅ CONFORME | **Aggiornamento 2026-08-03**: "Scarica i miei dati" in tab utente → procedura oRPC `compliance.exportUserData`, scarica un file JSON (profilo, consensi, account collegati senza token, attività incluso `rawJson` non ancora purgato, gear, statistiche) |
+| Art. 15 — Right of Access (scarica tutti i dati) | ✅ CONFORME | **Aggiornamento 2026-08-03**: "Scarica i miei dati" in tab utente → procedura oRPC `compliance.exportUserData`, scarica un file JSON (profilo, consensi, account collegati senza token, attività incluso `rawJson` non ancora purgato, gear, statistiche). **Aggiornamento 2026-08-06**: aggiunto `twoFactorEnabled` (booleano, gap #11) alla selezione; la riga `TwoFactor` (secret/backup codes cifrati) resta esclusa — è una credenziale, non un dato che l'utente deve riottenere, stessa logica già applicata a `password`/`accessToken` |
 | Art. 16 — Rectification (correggi dati) | ❌ NON CONFORME | Nessuna UI di profilo per modificare nome/email visibile nel codice |
 | Art. 20 — Portability (export machine-readable) | ✅ CONFORME | Lo stesso export di cui sopra produce JSON strutturato, leggibile da macchina — soddisfa anche la portabilità, oltre a `exportToToon` che resta un export per singola attività ad uso diverso |
 | Art. 21 — Right to Object / opt-out per trattamento | ⚠️ PARZIALE | **Aggiornamento 2026-08-06**: opt-out granulare disponibile per i dati sanitari (HR/suffer score) da `/settings/privacy`. Nessuna UI per gestire preferenze analytics o opt-out dal trattamento GTM (resta gap #8) |
@@ -135,6 +135,7 @@
 | **Google OAuth** | Email, nome, profilo Google utente | ⚠️ SCONOSCIUTO | ⚠️ SCONOSCIUTO |
 | **Strava API** | Access token, activity data, profilo atleta | ⚠️ SCONOSCIUTO | ⚠️ SCONOSCIUTO |
 | **Database hosting** (non visibile nel codice) | Tutti i dati | ⚠️ SCONOSCIUTO | ⚠️ SCONOSCIUTO |
+| **Resend** (email transazionali — verifica indirizzo, reset password) — aggiunto 2026-08-06 | Email destinatario, nome, contenuto dell'email (link di verifica/reset), metadati di consegna | ⚠️ DA FIRMARE (DPA pubblico: resend.com/legal/dpa) | Data Privacy Framework (Resend certificata) + SCC nel DPA come fallback |
 
 > **Problema specifico su Google Fonts — RISOLTO:** Il CJEU ruling (Schrems II) e la sentenza del Tribunale di Monaco (2022) hanno stabilito che caricare Google Fonts direttamente da CDN Google è illegale perché trasferisce IP agli USA senza consenso.
 >
@@ -148,6 +149,8 @@
 | Register dei sub-processor | ❌ NON ESISTE |
 | Transfer Impact Assessment | ❌ NON ESISTE |
 
+> **Nota Resend (aggiunta 2026-08-06)**: Resend permette di scegliere una *sending region* per dominio (es. `eu-west-1`, Irlanda), ma questo non equivale a data residency EU — l'host API resta `api.resend.com`, e i dati account, i metadati email, i log API e le analytics restano negli Stati Uniti indipendentemente dalla region scelta. La base del trasferimento è quindi la certificazione Data Privacy Framework di Resend (+ SCC nel DPA come fallback), non la region. Da verificare/firmare: DPA su resend.com/legal/dpa.
+
 ---
 
 ### SEZIONE 6 — SECURITY & BREACH NOTIFICATION
@@ -160,7 +163,7 @@
 | SQL injection | ✅ CONFORME | Prisma ORM usa query parametrizzate |
 | XSS | ✅ CONFORME | React escapa per default; `react-markdown` è safe. `dangerouslySetInnerHTML` usato solo per GTM script (necessario) |
 | CSRF | ⚠️ PARZIALE | `better-auth` gestisce sessioni; no token CSRF esplicito visibile |
-| Rate limiting | ✅ CONFORME | **Aggiornamento 2026-08-06**: `/api/auth` protetto dal rate limiter nativo di `better-auth`, ora esplicitamente `enabled: true` (non più dipendente da `NODE_ENV`) in `lib/auth.ts`, con regole dedicate su `/sign-in/email`, `/sign-up/email`, `/sign-in/social`, `/sign-in/oauth2` (5-10 req per finestra) e fallback 100 req/60s per il resto. `/api/rpc` protetto da un limiter dedicato in-memory (`lib/rate-limit.ts`, 500 req/min per sessione o IP) applicato in `app/api/rpc/[[...rest]]/route.ts`, perché fuori dal perimetro di better-auth ma punto di accesso a tutti i dati personali (export, delete account, attività). Storage volutamente in memoria (nessun IP persistito su DB) e nessuna nuova dipendenza esterna (scartato `@upstash/ratelimit` per non introdurre un ulteriore sub-processor USA da documentare). Entrambi gli store sono bounded: quello di `/api/rpc` (`lib/rate-limit.ts`) ha un tetto di 10.000 bucket con sweep delle entry scadute; per `/api/auth` è stato passato a better-auth un `rateLimit.customStorage` (stesso file, `authRateLimitStorage`) che sostituisce lo store `memory` nativo — quest'ultimo di default è una `Map` **senza alcun tetto**, che evince un'entry solo se la stessa chiave viene richiamata dopo la scadenza: un flood di chiavi mai riusate (es. IP falsificati) altrimenti crescerebbe indefinitamente in RAM. `/api/strava/webhook` resta non protetto — Strava non firma le richieste in modo verificabile lato codice, da valutare come follow-up separato. **Prerequisito infrastrutturale non verificabile da codice**: la risoluzione IP (`advanced.ipAddress.ipAddressHeaders: ["cf-connecting-ip", "x-forwarded-for"]`) presume che il reverse proxy *sovrascriva* `X-Forwarded-For` con l'IP reale del client e che l'origin accetti traffico solo da Cloudflare — altrimenti l'header è falsificabile e il limite aggirabile. Da verificare in staging/produzione controllando che il log `"Rate limiting skipped: could not determine client IP address"` non compaia. |
+| Rate limiting | ✅ CONFORME | **Aggiornamento 2026-08-06**: `/api/auth` protetto dal rate limiter nativo di `better-auth`, ora esplicitamente `enabled: true` (non più dipendente da `NODE_ENV`) in `lib/auth.ts`, con regole dedicate su `/sign-in/email`, `/sign-up/email`, `/sign-in/social`, `/sign-in/oauth2` (5-10 req per finestra) e fallback 100 req/60s per il resto. `/api/rpc` protetto da un limiter dedicato in-memory (`lib/rate-limit.ts`, 500 req/min per sessione o IP) applicato in `app/api/rpc/[[...rest]]/route.ts`, perché fuori dal perimetro di better-auth ma punto di accesso a tutti i dati personali (export, delete account, attività). Storage volutamente in memoria (nessun IP persistito su DB) e nessuna nuova dipendenza esterna (scartato `@upstash/ratelimit` per non introdurre un ulteriore sub-processor USA da documentare). Entrambi gli store sono bounded: quello di `/api/rpc` (`lib/rate-limit.ts`) ha un tetto di 10.000 bucket con sweep delle entry scadute; per `/api/auth` è stato passato a better-auth un `rateLimit.customStorage` (stesso file, `authRateLimitStorage`) che sostituisce lo store `memory` nativo — quest'ultimo di default è una `Map` **senza alcun tetto**, che evince un'entry solo se la stessa chiave viene richiamata dopo la scadenza: un flood di chiavi mai riusate (es. IP falsificati) altrimenti crescerebbe indefinitamente in RAM. `/api/strava/webhook` resta non protetto — Strava non firma le richieste in modo verificabile lato codice, da valutare come follow-up separato. **Prerequisito infrastrutturale non verificabile da codice**: la risoluzione IP (`advanced.ipAddress.ipAddressHeaders: ["cf-connecting-ip", "x-forwarded-for"]`) presume che il reverse proxy *sovrascriva* `X-Forwarded-For` con l'IP reale del client e che l'origin accetti traffico solo da Cloudflare — altrimenti l'header è falsificabile e il limite aggirabile. Da verificare in staging/produzione controllando che il log `"Rate limiting skipped: could not determine client IP address"` non compaia. **Aggiornamento 2026-08-06 (bis)**: aggiunte regole dedicate per gli endpoint email/2FA (gap #11 e verifica email): `/request-password-reset` e `/send-verification-email` a 3/300s (già il default di better-auth, pinnato esplicitamente perché un cambio upstream non lo allenti silenziosamente), `/reset-password` a 5/300s e `/verify-email` a 20/60s (nessun default nativo, altrimenti eredita il fallback globale 100/60s — un budget di brute-force generoso contro un token di reset), `/two-factor/verify-totp`, `/verify-backup-code`, `/enable`, `/disable`, `/generate-backup-codes`, `/get-totp-uri` a 5/300s ciascuna (il default del plugin è 10s/3req, ~1080 tentativi/ora contro un codice a 6 cifre — `customRules` vince sulle regole del plugin). **Limite noto**: la chiave del rate limiter è `ip + path`, non per-account — non protegge da un attacco distribuito su molti IP contro lo stesso utente. |
 | WAF/DDoS protection | ⚠️ SCONOSCIUTO | Dipende dall'infrastruttura |
 | Backup | ⚠️ SCONOSCIUTO | Non configurato nel codice |
 | Secret management | ✅ CONFORME | Env variables; Docker compose commenta AWS Secrets Manager/HashiCorp Vault |
@@ -244,11 +247,12 @@
 | 8 | **GTM si carica su tutte le pagine autenticate** senza consenso utente | 🟠 ALTO | Implementare CMP (Consent Management Platform) lato utente; non caricare GTM finché l'utente non consente analytics |
 | 9 | ~~**Nessuna revoca del consenso**~~ | ⚠️ PARZIALE | **Aggiornamento 2026-08-06**: aggiunta la pagina `/settings/privacy` con una revoca granulare per i dati sanitari (gap #7, risolto) — non richiede più di cancellare l'intero account per fermare quel trattamento. Manca ancora un toggle di revoca per gli analytics/GTM (gap #8, ancora aperto) |
 | 10 | ~~**Nessun audit log** per accessi/modifiche dati sensibili~~ | ✅ RISOLTO | **Aggiornamento 2026-08-06**: tabella `AuditLog` append-only (`prisma/schema.prisma`), scritta da `server/repositories/audit-log.repository.ts` per consensi, diritti GDPR (export/delete/erasure sanitaria) ed eventi di autenticazione. Nessuna libreria esterna (Pino/Winston) introdotta — un DB append-only è più durevole e interrogabile di log stdout su Docker senza aggregazione, e resta comunque disponibile come follow-up per il logging operativo (non di compliance). Scritture non transazionali sempre fail-safe via `recordAuditEventSafe`. Deliberatamente escluso l'accesso a singole attività (volume alto, crescita illimitata) |
-| 11 | **Nessun 2FA** | 🟡 MEDIO | Abilitare il plugin `twoFactor` di `better-auth` in `lib/auth.ts` |
+| 11 | ~~**Nessun 2FA**~~ | ⚠️ PARZIALE | **Aggiornamento 2026-08-06**: plugin `twoFactor` di better-auth attivo (TOTP, `issuer: "Dromos"`) + 10 codici di backup monouso. Nuova tabella `TwoFactor` (`prisma/schema.prisma`, `onDelete: Cascade`) e colonna `User.twoFactorEnabled`. UI opt-in in `/settings/account` (`components/settings/two-factor-card.tsx`); step di verifica in `/two-factor` (`components/auth/TwoFactorForm.tsx`) raggiunto quando `signIn.email` risponde `{twoFactorRedirect: true}`. Eventi `TWO_FACTOR_ENABLED`/`TWO_FACTOR_DISABLED`/`TWO_FACTOR_BACKUP_CODES_REGENERATED` in `AuditLog`. **Limiti noti (per cui resta PARZIALE, non RISOLTO)**: l'accesso via Google/Strava non è coperto dal secondo fattore (better-auth 1.5.5 intercetta solo `/sign-in/email`) e gli account solo-OAuth non possono attivarlo finché non impostano una password (ora possibile via `/forgot-password`, che crea un `Account` `credential`). **Recupero**: solo i codici di backup; persi entrambi i fattori serve un intervento operatore su DB (`pnpm db:disable-2fa <email>`, `scripts/disable-two-factor.ts`), senza una procedura scritta di verifica dell'identità — nuovo punto aperto, vedi gap #15 |
 | 12 | ~~**Consenso history sovrascritta**~~ | ✅ RISOLTO | **Aggiornamento 2026-08-06**: `recordLegalConsent` (`server/repositories/legal-consent.repository.ts`) e `setHealthDataConsent` (`server/repositories/user.repository.ts`) scrivono la mutazione su `User` e il relativo evento `AuditLog` (`POLICY_ACCEPTED`/`TERMS_ACCEPTED`/`HEALTH_DATA_CONSENT_GRANTED`/`HEALTH_DATA_CONSENT_REVOKED`) nella stessa transazione Prisma, con `metadata.version` del documento accettato. `AuditLog` non ha foreign key su `User` (per design, vedi gap #10) — è pseudonimizzato, non cancellato a cascata, alla cancellazione account |
 | 13 | **Nessun DPA register documentato** | 🟡 MEDIO | Creare documento interno con lista sub-processor, DPA firmati, SCCs per trasferimenti extra-EU |
 | 14 | **Records of Processing (Art. 30) mancanti** | 🟡 MEDIO | Documento formale con finalità, base legale, categorie dati, retention per ogni trattamento |
 | 15 | **Nessuna procedura breach notification** | 🟡 MEDIO | Procedura scritta: chi avvisare, template notifica Garante Privacy, latenza 72h |
+| 16 | ~~**Nessuna verifica dell'indirizzo email**~~ | ✅ RISOLTO | **Aggiornamento 2026-08-06**: `emailVerification` configurato in `lib/auth.ts` (invio via Resend, link valido 24h). Soft wall — non `requireEmailVerification: true` — perché la sessione deve esistere al signup affinché `RegisterForm` scriva il consenso legale appena raccolto: un gate hard romperebbe la prova di consenso Art. 7. `EmailVerificationWall` (`components/auth/email-verification-wall.tsx`, mostrato da `(user-app)/layout.tsx` dopo il `LegalConsentWall`) blocca l'app finché `emailVerified` non è vero, ma **solo** per account con un `Account` `credential` e un'email effettivamente consegnabile (`server/services/email-verification.service.ts`) — esclude quindi gli account Google (arrivano già verificati), gli account Strava con email sintetica `strava_<id>@strava.local` (altrimenti un lockout permanente e inevitabile, l'indirizzo non può ricevere nulla) e gli account Strava con email reale ma nessuna password (non hanno scelto loro quell'indirizzo). Il wall ha comunque via di uscita anche per un'email reale ma sbagliata in fase di registrazione: mostra l'indirizzo, permette il reinvio, il logout e — per non creare una regressione Art. 17 — l'eliminazione dell'account direttamente dal wall. Introdotta anche l'infrastruttura email condivisa (`server/infrastructure/email.client.ts`, raw `fetch` su Resend, nessuna dipendenza SDK) usata anche per il password reset — vedi § 5.1 per Resend come nuovo sub-processor |
 
 ---
 
@@ -282,11 +286,13 @@
 
 11. ~~**Tabella `ConsentHistory`**~~ ✅ **FATTO**: coperta dalla stessa tabella `AuditLog` invece di una tabella dedicata (`POLICY_ACCEPTED`/`TERMS_ACCEPTED` con `metadata.documentId`/`version`) — vedi gap #12. Nessun campo `ipAddress` per scelta di data-minimization (vedi § 8).
 
-12. **Abilitare 2FA**: configurare plugin `twoFactor` in `lib/auth.ts`; rendere opzionale ma consigliato via UI.
+12. ~~**Abilitare 2FA**~~ ✅ **FATTO**: plugin `twoFactor` in `lib/auth.ts` (TOTP + backup codes), opt-in da `/settings/account`, verifica in `/two-factor`. Vedi gap #11 per i limiti noti (OAuth non coperto, account senza password esclusi finché non impostano una password via `/forgot-password`).
 
 13. **Records of Processing (Art. 30)**: documento interno con tutte le tipologie di trattamento.
 
-14. **DPA register**: lista sub-processor con status DPA, SCCs, ultimo aggiornamento.
+14. **DPA register**: lista sub-processor con status DPA, SCCs, ultimo aggiornamento — includere ora anche Resend (email transazionali).
+
+20. ~~**Verifica email + recupero password**~~ ✅ **FATTO**: `emailVerification`/`sendResetPassword` in `lib/auth.ts` via Resend (`server/infrastructure/email.client.ts`, raw fetch, nessun SDK). Soft wall (`EmailVerificationWall`) con esclusioni per account OAuth e email Strava sintetiche — vedi gap #16. `/forgot-password` + `/reset-password` con enumeration protection nativa di better-auth e `revokeSessionsOnPasswordReset: true`.
 
 ### Mese 3+ (Long-term + certification)
 
@@ -309,7 +315,9 @@ LIBRERIE DA AGGIUNGERE:
 - node-cron / Vercel Cron Functions      → per eseguire purgeStaleActivityData()
 - ~~pino / pino-pretty~~                  → NON necessario: audit trail risolto con la tabella `AuditLog` (append-only, Postgres) invece di structured logging esterno — più durevole/interrogabile di log stdout, nessuna nuova dipendenza
 - ~~@upstash/ratelimit + @upstash/redis~~  → NON necessario: rate limiting risolto con il limiter nativo di better-auth (`/api/auth`) + un limiter in-memory custom (`/api/rpc`, `lib/rate-limit.ts`), evitando un sub-processor USA aggiuntivo
+- ~~SDK email (resend / nodemailer / react-email)~~ → NON necessario: `server/infrastructure/email.client.ts` usa `fetch` diretto sull'API Resend (stesso stile di `strava.client.ts`) e i due template sono HTML inline — coerente con la linea "niente dipendenze non necessarie" già seguita per il rate limiting
 - node:crypto (built-in)                 → AES-256-GCM per token encryption; SHA-256 per la pseudonimizzazione di AuditLog
+- react-qr-code                          → rendering del QR TOTP lato client per l'enrollment 2FA (SVG puro, nessun servizio remoto: l'URI `otpauth://` è il secret)
 
 FEATURES DA IMPLEMENTARE:
 - DELETE /api/user/me                    → Right to Erasure
@@ -319,6 +327,9 @@ FEATURES DA IMPLEMENTARE:
 - ~~ConsentHistory table~~ ✅ FATTO       → coperta da `AuditLog` (vedi gap #10/#12)
 - Cookie Consent banner                  → CMP per GTM
 - ~~Separato consenso biometrico~~ ✅ FATTO → prima sync Strava (health-data-consent-gate)
+- ~~Verifica email alla registrazione~~ ✅ FATTO → soft wall, vedi gap #16
+- ~~Recupero password~~ ✅ FATTO          → `/forgot-password` + `/reset-password`, vedi roadmap item 20
+- ~~2FA opzionale~~ ✅ FATTO (parziale)   → TOTP + backup codes, vedi gap #11
 
 INFRASTRUTTURA:
 - ~~Self-host font Geist~~ ✅ FATTO         → Google Fonts CDN eliminato (`lib/fonts/fonts.ts`)
@@ -361,13 +372,17 @@ SICUREZZA
 [x] Token OAuth Strava cifrati (AES-256-GCM) — Prisma `$extends`, backfill in `scripts/encrypt-account-tokens.ts`
 [x] Google Fonts self-hosted (rimuovere CDN)
 [x] Rate limiting su /api/auth/* (better-auth) e /api/rpc/* (lib/rate-limit.ts) — /api/strava/webhook resta escluso, da valutare come follow-up
-[ ] 2FA abilitato (opzionale per utenti)
+[~] 2FA abilitato (opzionale per utenti) — TOTP + 10 codici di backup, /settings/account; NON copre l'accesso Google/Strava e non è disponibile per account solo-OAuth finché non impostano una password
+[x] Verifica email alla registrazione — soft wall, esclude account OAuth e email Strava sintetiche per evitare lockout (gap #16)
+[x] Recupero password via email — token monouso 1h, sessioni esistenti revocate al reset, enumeration-safe
 [ ] HTTP security headers (HSTS, CSP, X-Frame-Options)
 
 TERZI & TRASFERIMENTI
 [ ] DPA firmato e documentato per Google, Strava, hosting
+[ ] DPA Resend firmato (email transazionali)
 [ ] SCCs verificate per trasferimenti USA
 [ ] Sub-processor register creato e mantenuto
+[ ] Privacy Policy aggiornata con Resend come sub-processor
 
 LOGGING
 [x] Audit trail per accessi/modifiche a dati sensibili — tabella AuditLog append-only (no IP/user-agent, retention 24 mesi con purge automatico); NON structured logging esterno (Pino), scelta deliberata: DB durevole/interrogabile invece di log stdout

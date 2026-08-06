@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { RegisterForm } from "@/components/auth";
+import { TwoFactorForm } from "@/components/auth";
 import {
 	Card,
 	CardContent,
@@ -9,20 +9,22 @@ import {
 } from "@/components/ui/card";
 
 export const metadata: Metadata = {
-	title: "Registrati — Dromos",
-	description: "Crea il tuo account Dromos",
+	title: "Verifica in due passaggi — Dromos",
+	description: "Conferma la tua identità per completare l'accesso",
 };
 
-export default function RegisterPage() {
+export default function TwoFactorPage() {
 	return (
 		<div className="flex min-h-screen items-center justify-center p-4">
 			<Card className="w-full max-w-sm">
 				<CardHeader className="space-y-1 text-center">
-					<CardTitle className="text-2xl">Crea un account</CardTitle>
-					<CardDescription>Inserisci i tuoi dati per iniziare</CardDescription>
+					<CardTitle className="text-2xl">Verifica in due passaggi</CardTitle>
+					<CardDescription>
+						Inserisci il codice per completare l&apos;accesso
+					</CardDescription>
 				</CardHeader>
 				<CardContent>
-					<RegisterForm />
+					<TwoFactorForm />
 				</CardContent>
 			</Card>
 		</div>

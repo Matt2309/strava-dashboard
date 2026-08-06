@@ -28,6 +28,11 @@ pnpm db:push             # Push schema without migration (prototyping only)
 # Staging / production DB variants
 pnpm stg-db:studio
 pnpm prod-db:studio
+
+# 2FA operator recovery (see Auth § 2FA below)
+pnpm db:disable-2fa <email-or-user-id>       # local
+pnpm stg-db:disable-2fa <email-or-user-id>   # staging
+pnpm prod-db:disable-2fa <email-or-user-id>  # production
 ```
 
 No test suite is configured at this time.
@@ -55,11 +60,13 @@ prisma/schema.prisma     Single source of truth for the data model
 
 | Group | Path | Access |
 |-------|------|--------|
-| `(app)/(auth)` | `/login`, `/register` | PROTECTED (redirect if logged in) |
-| `(app)/(user-app)` | `/`, `/garage`, `/activity/:id` | PRIVATE (redirect if logged out) |
+| `(app)/(auth)` | `/login`, `/register`, `/forgot-password` | PROTECTED (redirect if logged in) |
+| `(app)/(auth)` | `/reset-password` | PUBLIC — the token in the URL is the credential, not the session; see Auth § Password reset below |
+| `(app)/(auth)` | `/two-factor` | PROTECTED — reached mid sign-in with no session yet (better-auth deletes it before redirecting here), so PROTECTED still lets it through while bouncing an already-signed-in visitor |
+| `(app)/(user-app)` | `/`, `/garage`, `/activity/:id`, `/settings/privacy`, `/settings/account` | PRIVATE (redirect if logged out) |
 | `(app)/(legal)` | `/privacy-policy` | PUBLIC |
 
-Route access levels (`RouteAccess.PUBLIC/PROTECTED/PRIVATE`) are defined in `lib/routes.ts` and enforced in the user-app layout at `app/(app)/(user-app)/layout.tsx`. That layout also gates rendering behind two sequential checks: privacy policy acceptance (`PolicyUpdateWall`), then Strava connection (`ConnectStrava`).
+Route access levels (`RouteAccess.PUBLIC/PROTECTED/PRIVATE`) are defined in `lib/routes.ts` and enforced in the user-app layout at `app/(app)/(user-app)/layout.tsx`. That layout also gates rendering behind two sequential checks: privacy policy acceptance (`LegalConsentWall`), then email verification (`EmailVerificationWall` — see Auth § Email verification below).
 
 ### API surface
 
@@ -70,7 +77,7 @@ Route access levels (`RouteAccess.PUBLIC/PROTECTED/PRIVATE`) are defined in `lib
 
 oRPC procedures can be called directly from server components as plain async functions (bypassing HTTP), e.g. `await isStravaConnected({ userId })` in the layout.
 
-**Rate limiting**: `/api/auth/*` is covered by better-auth's built-in rate limiter (configured in `lib/auth.ts` — `rateLimit` + `advanced.ipAddress`), using a bounded in-memory store (`authRateLimitStorage` in `lib/rate-limit.ts`) passed as `rateLimit.customStorage` instead of the default `"memory"` storage — the default has no cap and never evicts a key unless it's read again after expiry. `/api/rpc` sits outside that perimeter, so it has its own bounded limiter (`consumeRateLimit` in `lib/rate-limit.ts`) applied directly in `app/api/rpc/[[...rest]]/route.ts`, not as an oRPC middleware — a middleware would also fire on the server-side `.callable()` invocations above, which have no real client IP/session to key on. `/api/strava/webhook` and `/api/cron/purge-raw-data` are not rate-limited.
+**Rate limiting**: `/api/auth/*` is covered by better-auth's built-in rate limiter (configured in `lib/auth.ts` — `rateLimit` + `advanced.ipAddress`), using a bounded in-memory store (`authRateLimitStorage` in `lib/rate-limit.ts`) passed as `rateLimit.customStorage` instead of the default `"memory"` storage — the default has no cap and never evicts a key unless it's read again after expiry. `/api/rpc` sits outside that perimeter, so it has its own bounded limiter (`consumeRateLimit` in `lib/rate-limit.ts`) applied directly in `app/api/rpc/[[...rest]]/route.ts`, not as an oRPC middleware — a middleware would also fire on the server-side `.callable()` invocations above, which have no real client IP/session to key on. `/api/strava/webhook` and `/api/cron/purge-raw-data` are not rate-limited. `rateLimit.customRules` also pins tight limits on every email-sending and 2FA-verification endpoint (`/request-password-reset`, `/send-verification-email`, `/reset-password`, `/verify-email`, `/two-factor/*`) — see Auth § Email verification / § 2FA below. The rate-limit key is always `ip + path`, never per-account.
 
 ### Auth
 
@@ -80,11 +87,45 @@ Strava uses `genericOAuth` since it isn't a first-class better-auth provider. Ac
 
 `lib/auth.ts` also registers `databaseHooks.user.create.after`, `databaseHooks.session.create.after`, and `databaseHooks.session.delete.before` to record `USER_REGISTERED`/`LOGIN`/`LOGOUT` audit events (see Audit trail below). All three call `recordAuditEventSafe`, so a failing audit write never blocks sign-up, sign-in, or sign-out.
 
+#### Email verification (GDPR audit gap #16)
+
+`emailVerification` in `lib/auth.ts` sends a verification link via Resend on sign-up (`sendOnSignUp: true`, 24h expiry). This is a **soft wall, not `requireEmailVerification: true`**: the session is still created at sign-up (so `RegisterForm` can write the privacy consent it just collected), and the app itself is blocked by `EmailVerificationWall` (`components/auth/email-verification-wall.tsx`, rendered from `app/(app)/(user-app)/layout.tsx` after `LegalConsentWall`) until `emailVerified` is true.
+
+The wall only applies when `server/services/email-verification.service.ts#getEmailVerificationRequirement` returns `required: true` — i.e. `!emailVerified && hasCredentialAccount && isDeliverableEmail(email)`. This three-part predicate exists specifically to avoid ever locking anyone out: Google users arrive with `emailVerified` already true; Strava users never do, but `hasCredentialAccount` excludes every OAuth-only account (no local password to protect, so nothing to verify), and `isDeliverableEmail` (`lib/email-address.ts`) is a backstop that also protects `server/services/email.service.ts#deliverVerificationEmail` from ever handing Strava's synthetic `strava_<id>@strava.local` address to Resend — that guard matters because better-auth's own OAuth `link-account` flow calls `sendVerificationEmail` unconditionally for any new OAuth user with `emailVerified: false`. The wall itself always carries an escape hatch (resend, sign out, and — reusing `DeleteAccountDialog` — delete the account) so a typo'd email at registration can never become a permanent dead end (there is still no profile UI to correct it — Art. 16, still an open gap).
+
+**Do not set `session.cookieCache`** — it isn't configured today, which is exactly what makes `getSession()` re-read `emailVerified` from Postgres on every navigation; turning it on would strand a just-verified user behind the wall for the cache TTL.
+
+#### Password reset
+
+`emailAndPassword.sendResetPassword` (also via Resend) + `/forgot-password` → `/reset-password` implement Art. 32 credential recovery. `revokeSessionsOnPasswordReset: true` kills every existing session on reset (each revocation still fires the `LOGIN`/`LOGOUT` audit hooks above, once per session). `/reset-password` is deliberately `RouteAccess.PUBLIC`, not `PROTECTED` — the token in the URL is the credential, not the session, so a user who is still logged in on the device where they click the emailed link must still reach the form. better-auth's own enumeration protection (identical response body/timing whether or not the address exists) only holds because `advanced.backgroundTasks.handler` in `lib/auth.ts` hands the actual Resend call to `after()` — without it, the "user exists" branch is measurably slower than the "user doesn't exist" branch.
+
+better-auth's own behavior worth knowing: `/reset-password` **creates a `credential` `Account` row for an OAuth-only user** if they don't have one — which is what makes 2FA reachable for a Google/Strava-only user (see below).
+
+#### 2FA (GDPR audit gap #11)
+
+`twoFactor({ issuer: "Dromos" })` in `lib/auth.ts` enables opt-in TOTP + 10 single-use backup codes (`components/settings/two-factor-card.tsx`, `/settings/account`). `TwoFactor.secret`/`backupCodes` are encrypted by better-auth itself with `BETTER_AUTH_SECRET` — **do not** add these columns to `lib/prisma-extensions/account-token-encryption.ts`; that extension only rewrites `args.data`, never `args.where`, and `/two-factor/verify-backup-code` updates with a `where` clause on the ciphertext it just read, so a second encryption layer would break every backup-code redemption. Consequence: **rotating `BETTER_AUTH_SECRET` invalidates every 2FA enrolment**.
+
+On sign-in, `authClient.signIn.email` returns `{ twoFactorRedirect: true }` (a 200, not an error, no session) when the account has 2FA on; `lib/auth-client.ts`'s `twoFactorClient({ onTwoFactorRedirect })` hard-navigates to `/two-factor` (`components/auth/TwoFactorForm.tsx`) because the session cookie was already replaced server-side by a short-lived `two_factor` cookie.
+
+**Known limits** (why gap #11 is ⚠️ PARZIALE, not ✅ RISOLTO in the audit doc):
+- The plugin only intercepts `/sign-in/email` — **`/sign-in/social` and `/sign-in/oauth2` are not covered**, so a user with 2FA on who also has Google/Strava linked can bypass it entirely via OAuth sign-in.
+- Enable/disable/regenerate-backup-codes all require the account password (`authClient.twoFactor.enable/disable/generateBackupCodes`), so an OAuth-only user has no path to 2FA until they gain a `credential` account (e.g. via `/forgot-password` — see above).
+
+Audit events (`TWO_FACTOR_ENABLED`/`DISABLED`/`BACKUP_CODES_REGENERATED`) are recorded via two mechanisms in `lib/auth.ts`: `databaseHooks.user.update.after` inspects the endpoint `context.path` for the enable/disable flag flip, and a top-level `hooks.after` (`createAuthMiddleware`) catches `/two-factor/generate-backup-codes`, which never touches the `User` row. See Audit trail below.
+
+**Recovery**: the only self-service path is the backup codes. If a user loses both the authenticator and the codes, there is no in-app recovery — an operator runs `pnpm db:disable-2fa <email-or-user-id>` (`scripts/disable-two-factor.ts`) after verifying the user's identity out of band; it clears the `TwoFactor` row, the flag, sessions and `Verification` rows in one transaction and records `TWO_FACTOR_DISABLED` with `metadata: { reason: "operator_recovery" }`.
+
+#### Transactional email
+
+`server/infrastructure/email.client.ts` sends via Resend using raw `fetch` (no SDK — same style as `strava.client.ts`), with `RESEND_API_KEY` read lazily so a missing key never breaks a build; with no key configured, it only logs (domain + subject, never the full address) instead of sending — this is what makes local development work with no Resend account. Templates (`server/infrastructure/email.templates.ts`) are plain inline-HTML functions, not react-email. `lib/email-address.ts#isDeliverableEmail` filters out reserved/synthetic domains (including Strava's `strava.local`) before any send is attempted.
+
 ### Database
 
 PostgreSQL via `@prisma/adapter-pg`. Prisma client is generated to `lib/generated/prisma` (non-default path — always run `pnpm db:generate` after schema changes).
 
-Key models: `User`, `Account`, `Session`, `Activity`, `GearFunctional`, `GearDevice`, `UserStatistics`, `PrivacyPolicy`, `AuditLog`.
+Key models: `User`, `Account`, `Session`, `Verification`, `TwoFactor`, `Activity`, `GearFunctional`, `GearDevice`, `UserStatistics`, `PrivacyPolicy`, `AuditLog`.
+
+**`TwoFactor`** (better-auth `twoFactor` plugin, GDPR audit gap #11): `secret`/`backupCodes` are encrypted by better-auth with `BETTER_AUTH_SECRET`, NOT by the `ENCRYPTION_KEY` Prisma extension below — see Auth § 2FA for why adding them there would break backup-code redemption. `onDelete: Cascade` on `userId`. `Verification` also backs the 2FA challenge cookie and the "trust this device" cookie (both keyed by `value = userId`); since `Verification` has no FK to `User`, `server/repositories/user.repository.ts#deleteUserById` explicitly deletes matching rows before deleting the user.
 
 **`UserStatistics.total_time_min`**: field name is misleading — the value is stored in **seconds**, not minutes.
 
@@ -102,6 +143,8 @@ Key models: `User`, `Account`, `Session`, `Activity`, `GearFunctional`, `GearDev
 - Account deletion (`compliance.service.ts#deleteUserAccount`) records `ACCOUNT_DELETED` before deleting, then pseudonymizes that user's whole audit trail (SHA-256 hash of the old id) right after — the account is gone, but the fact that it was deleted, and when, remains provable.
 - Purged nightly alongside `rawJson` by `/api/cron/purge-raw-data` (`purgeStaleAuditLogs`, 24-month retention — see `AUDIT_LOG_RETENTION_DAYS` in `compliance.service.ts`).
 - No IP/user-agent is captured on any audit row, consistent with the data-minimization stance already taken in `lib/rate-limit.ts`.
+- `EMAIL_VERIFIED` (from `emailVerification.afterEmailVerification`), `PASSWORD_RESET_REQUESTED`/`PASSWORD_RESET_COMPLETED` (`sendResetPassword`/`onPasswordReset`) — all in `lib/auth.ts`.
+- `TWO_FACTOR_ENABLED`/`TWO_FACTOR_DISABLED` — via `databaseHooks.user.update.after(user, context)`, keyed on `context.path` (`/two-factor/verify-totp` / `/two-factor/disable`). This works because `updateWithHooks` passes the calling endpoint's context as the hook's 2nd argument, so `context.path` identifies which plugin route triggered the `User` write. `TWO_FACTOR_BACKUP_CODES_REGENERATED` — via a top-level `hooks.after` (`createAuthMiddleware`) instead, because `/two-factor/generate-backup-codes` only touches the `TwoFactor` row and never reaches `databaseHooks.user.update`. Both live in `lib/auth.ts` — see Auth § 2FA.
 
 ### Data flow (Strava sync)
 
@@ -127,4 +170,4 @@ Client-side queries use `@orpc/tanstack-query`. The query client is configured i
 | `.env.stg.local` | Staging DB scripts |
 | `.env.production.local` | Production Docker build and DB scripts |
 
-Required variables: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `NEXT_PUBLIC_BETTER_AUTH_URL`, `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `STRAVA_WEBHOOK_VERIFY_TOKEN`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `CRON_SECRET`, `ENCRYPTION_KEY`. See `.env.example`.
+Required variables: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `NEXT_PUBLIC_BETTER_AUTH_URL`, `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `STRAVA_WEBHOOK_VERIFY_TOKEN`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `CRON_SECRET`, `ENCRYPTION_KEY`, `RESEND_API_KEY`, `EMAIL_FROM`. See `.env.example`. `RESEND_API_KEY` may be left empty in local dev — see Auth § Transactional email.

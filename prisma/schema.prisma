@@ -39,6 +39,11 @@ model User {
   privacyPolicyId   String?
   TermsConditions   TermsConditions? @relation(fields: [termsConditionsId], references: [id])
   termsConditionsId String?
+
+  // GDPR audit gap #11 — better-auth `twoFactor` plugin flag. `input: false`
+  // in lib/auth.ts: only the plugin's own endpoints ever flip this.
+  twoFactorEnabled Boolean    @default(false)
+  TwoFactor        TwoFactor?
 }
 
 model Session {
@@ -79,6 +84,27 @@ model Verification {
   updatedAt  DateTime?
 }
 
+// better-auth `twoFactor` plugin table (GDPR audit gap #11).
+// `secret` and `backupCodes` are ALREADY encrypted at rest by better-auth
+// itself (symmetricEncrypt with BETTER_AUTH_SECRET; `storeBackupCodes:
+// "encrypted"` is the plugin default) — do NOT add these columns to
+// lib/prisma-extensions/account-token-encryption.ts. That extension only
+// rewrites `args.data`, never `args.where`, and
+// /two-factor/verify-backup-code updates with
+// `where: [{ backupCodes: <ciphertext just read> }]` — a second encryption
+// layer would make the where-clause compare a decrypted value against stored
+// ciphertext, so every backup-code redemption would fail with CONFLICT.
+// Consequence: rotating BETTER_AUTH_SECRET invalidates every 2FA enrolment.
+model TwoFactor {
+  id          String   @id
+  secret      String
+  backupCodes String
+  createdAt   DateTime @default(now())
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 // --- ENUMS ---
 enum FunctionalType {
   ROAD_SHOE // Road shoes
@@ -105,6 +131,12 @@ enum AuditAction {
   USER_REGISTERED
   LOGIN
   LOGOUT
+  EMAIL_VERIFIED
+  PASSWORD_RESET_REQUESTED
+  PASSWORD_RESET_COMPLETED
+  TWO_FACTOR_ENABLED
+  TWO_FACTOR_DISABLED
+  TWO_FACTOR_BACKUP_CODES_REGENERATED
 }
 
 model GearFunctional {
@@ -240,7 +272,7 @@ model AuditLog {
   // True once subjectId has been replaced by its SHA-256 hash on account deletion.
   isPseudonymized Boolean @default(false)
 
-  action AuditAction
+  action   AuditAction
   // Event-specific detail (accepted document version, erased row count).
   // MUST NEVER contain personal data: only document ids, versions, counters.
   metadata Json?

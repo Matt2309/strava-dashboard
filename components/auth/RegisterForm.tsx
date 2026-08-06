@@ -38,8 +38,8 @@ export function RegisterForm() {
 		if (signUpError) {
 			setError(
 				signUpError.status === 429
-					? "Too many attempts. Please wait a bit before trying again."
-					: (signUpError.message ?? "Registration failed. Please try again."),
+					? "Troppi tentativi. Riprova tra qualche minuto."
+					: (signUpError.message ?? "Registrazione non riuscita. Riprova."),
 			);
 			setLoading(false);
 		} else {
@@ -63,11 +63,11 @@ export function RegisterForm() {
 					<p className="text-sm text-destructive text-center">{error}</p>
 				)}
 				<div className="flex flex-col gap-2">
-					<Label htmlFor="name">Name</Label>
+					<Label htmlFor="name">Nome</Label>
 					<Input
 						id="name"
 						type="text"
-						placeholder="Your name"
+						placeholder="Il tuo nome"
 						value={name}
 						onChange={(e) => setName(e.target.value)}
 						required
@@ -79,7 +79,7 @@ export function RegisterForm() {
 					<Input
 						id="email"
 						type="email"
-						placeholder="you@example.com"
+						placeholder="tu@esempio.com"
 						value={email}
 						onChange={(e) => setEmail(e.target.value)}
 						required
@@ -110,7 +110,7 @@ export function RegisterForm() {
 						htmlFor="terms"
 						className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
 					>
-						I have read and accept the{" "}
+						Ho letto e accetto la{" "}
 						<Link
 							href="/privacy-policy"
 							target="_blank"
@@ -118,13 +118,13 @@ export function RegisterForm() {
 						>
 							Privacy Policy
 						</Link>{" "}
-						and the{" "}
+						e i{" "}
 						<Link
 							href="/terms-conditions"
 							target="_blank"
 							className="text-primary underline underline-offset-4 hover:text-primary/80"
 						>
-							Terms &amp; Conditions
+							Termini e Condizioni
 						</Link>
 					</Label>
 				</div>
@@ -134,17 +134,17 @@ export function RegisterForm() {
 					className="w-full mt-2"
 					disabled={loading || !policyAccepted}
 				>
-					{loading ? "Creating account…" : "Create account"}
+					{loading ? "Creazione account…" : "Crea account"}
 				</Button>
 			</form>
 
 			<p className="text-center text-sm text-muted-foreground">
-				Already have an account?{" "}
+				Hai già un account?{" "}
 				<Link
 					href={ROUTES.login.path}
 					className="underline underline-offset-4 hover:text-primary"
 				>
-					Sign in
+					Accedi
 				</Link>
 			</p>
 		</div>
