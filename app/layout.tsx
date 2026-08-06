@@ -1,22 +1,12 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { GoogleTagManager } from "@next/third-parties/google";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { TanstackProvider } from "@/components/providers/tanstack-wrapper";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Toaster } from "@/components/ui/sonner";
-import {GoogleTagManager} from "@next/third-parties/google";
-
-const geistSans = Geist({
-	variable: "--font-geist-sans",
-	subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-	variable: "--font-geist-mono",
-	subsets: ["latin"],
-});
+import { geistMono, inter } from "@/lib/fonts/fonts";
 
 export const metadata: Metadata = {
 	title: "Dromos",
@@ -30,11 +20,11 @@ export default function RootLayout({
 }>) {
 	return (
 		<html lang="en" suppressHydrationWarning>
-        <head>
-            <script
-                // biome-ignore lint/security/noDangerouslySetInnerHtml: Necesary for GTM
-                dangerouslySetInnerHTML={{
-                    __html: `
+			<head>
+				<script
+					// biome-ignore lint/security/noDangerouslySetInnerHtml: Necesary for GTM
+					dangerouslySetInnerHTML={{
+						__html: `
               window.dataLayer = window.dataLayer || [];
               function gtag(){dataLayer.push(arguments);}
               
@@ -53,12 +43,10 @@ export default function RootLayout({
               // Nascondi i dati degli annunci finché non c'è consenso
               gtag('set', 'ads_data_redaction', true);
             `,
-                }}
-            />
-        </head>
-			<body
-				className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-			>
+					}}
+				/>
+			</head>
+			<body className={`${inter.variable} ${geistMono.variable} antialiased`}>
 				<ThemeProvider
 					attribute="class"
 					defaultTheme="system"
@@ -74,7 +62,7 @@ export default function RootLayout({
 					</ErrorBoundary>
 				</ThemeProvider>
 			</body>
-            <GoogleTagManager gtmId="GTM-KJXQXRXK" />
+			<GoogleTagManager gtmId="GTM-KJXQXRXK" />
 		</html>
 	);
 }

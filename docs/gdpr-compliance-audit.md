@@ -131,12 +131,14 @@
 | Terzo | Dati trasmessi | DPA | SCCs |
 |-------|---------------|-----|------|
 | **Google (GTM)** `GTM-KJXQXRXK` hardcoded in `app/layout.tsx` | IP, user agent, page visits di tutti gli utenti autenticati | ⚠️ SCONOSCIUTO | ⚠️ SCONOSCIUTO |
-| **Google (Fonts)** `Geist` caricato via `next/font/google` | IP address di ogni visitatore inviato a Google CDN | ⚠️ SCONOSCIUTO | ⚠️ SCONOSCIUTO |
+| **Google (Fonts)** — ✅ RISOLTO 2026-08-05 | Nessuno — font self-hosted, vedi nota sotto | N/A | N/A |
 | **Google OAuth** | Email, nome, profilo Google utente | ⚠️ SCONOSCIUTO | ⚠️ SCONOSCIUTO |
 | **Strava API** | Access token, activity data, profilo atleta | ⚠️ SCONOSCIUTO | ⚠️ SCONOSCIUTO |
 | **Database hosting** (non visibile nel codice) | Tutti i dati | ⚠️ SCONOSCIUTO | ⚠️ SCONOSCIUTO |
 
-> **Problema specifico su Google Fonts:** Il CJEU ruling (Schrems II) e la sentenza del Tribunale di Monaco (2022) hanno stabilito che caricare Google Fonts direttamente da CDN Google è illegale perché trasferisce IP agli USA senza consenso. Bisogna self-hostare i font o usare `next/font/local`.
+> **Problema specifico su Google Fonts — RISOLTO:** Il CJEU ruling (Schrems II) e la sentenza del Tribunale di Monaco (2022) hanno stabilito che caricare Google Fonts direttamente da CDN Google è illegale perché trasferisce IP agli USA senza consenso.
+>
+> **Nota di correzione rispetto alla diagnosi originale:** `next/font/google` (usato per Geist) non era la fuga runtime — Next.js scarica quei font a build time e li serve già dal dominio dell'app. La fuga reale era l'`@import url("https://fonts.googleapis.com/css2?family=Inter...")` in `app/globals.css`, che faceva contattare `fonts.googleapis.com`/`fonts.gstatic.com` a ogni visitatore per caricare Inter (il vero font UI). Risolto vendorizzando i binari woff2 di Inter e Geist Mono in `lib/fonts/` e dichiarandoli via `next/font/local` (`lib/fonts/fonts.ts`) — zero richieste del browser verso domini Google, zero dipendenza da Google anche in fase di build.
 
 #### 5.2 Trasferimenti verso Paesi Terzi
 
@@ -230,7 +232,7 @@
 | 2 | ~~**Nessun Right to Erasure** (Art. 17)~~ | ✅ RISOLTO | Implementato "Elimina account" nella tab utente, con conferma 2-step (digitare "ELIMINA"). Procedura oRPC `compliance.deleteAccount` (non un endpoint REST separato — segue il flusso oRPC + TanStack Query già usato nel progetto): revoca best-effort dell'autorizzazione Strava (`deauthorizeStrava` in `server/infrastructure/strava.client.ts`), poi `prisma.user.delete` (cascade Prisma fa il resto) |
 | 3 | ~~**Nessun Data Export** (Art. 15 + Art. 20)~~ | ✅ RISOLTO | Implementato "Scarica i miei dati" nella tab utente. Procedura oRPC `compliance.exportUserData` (stesso flusso oRPC + TanStack Query, nessun endpoint REST dedicato) aggrega `User`, consensi, account collegati (senza token), `Activity` (incluso `rawJson`), `GearFunctional`, `GearDevice`, `UserStatistics` in un JSON scaricato lato browser |
 | 4 | ~~**Token OAuth Strava in plaintext nel DB**~~ | ✅ RISOLTO | Cifrati AES-256-GCM (`ENCRYPTION_KEY`) via Prisma `$extends` (`lib/prisma-extensions/account-token-encryption.ts`), trasparente per tutti i call site incluso better-auth. Righe legacy in plaintext restano leggibili (passthrough) — nessun downtime; backfill idempotente in `scripts/encrypt-account-tokens.ts`. Rotazione/versioning della chiave non ancora implementati (follow-up) |
-| 5 | **Google Fonts caricati da CDN Google** | 🟠 ALTO | Convertire a `next/font/local` con file font self-hosted — elimina trasferimento IP a Google |
+| 5 | ~~**Google Fonts caricati da CDN Google**~~ | ✅ RISOLTO | `@import` di Inter da `fonts.googleapis.com` rimosso da `app/globals.css`; Inter e Geist Mono ora self-hosted via `next/font/local` (`lib/fonts/fonts.ts`) |
 | 6 | **Nessun Rate Limiting** | 🟠 ALTO | Aggiungere rate limiting su `/api/auth` (login, register, reset) con `@upstash/ratelimit` o middleware Next.js |
 | 7 | **Consenso non granulare** — `averageHeartrate` è dato sanitario (Art. 9) | 🟠 ALTO | Aggiungere consenso esplicito separato per "dati biometrici/sanitari" prima di sincronizzare attività con HR |
 | 8 | **GTM si carica su tutte le pagine autenticate** senza consenso utente | 🟠 ALTO | Implementare CMP (Consent Management Platform) lato utente; non caricare GTM finché l'utente non consente analytics |
@@ -252,7 +254,7 @@
 
 2. ~~**Delete Account**~~ ✅ **FATTO**: procedura oRPC `compliance.deleteAccount` (`prisma.user.delete` — Prisma cascade elimina tutto), con dialog di conferma a 2 step nella tab utente (`components/account/delete-account-dialog.tsx`).
 
-3. **Self-hosting Google Fonts**: scaricare i font Geist localmente, rimuovere `next/font/google`, usare `next/font/local`. Elimina trasferimento IP a Google.
+3. ~~**Self-hosting Google Fonts**~~ ✅ **FATTO**: rimosso l'`@import` di Inter da `fonts.googleapis.com` in `app/globals.css`; Inter e Geist Mono ora vendorizzati e dichiarati via `next/font/local` in `lib/fonts/fonts.ts`. Nessuna richiesta browser/build verso domini Google per i font.
 
 4. ~~**Data Export endpoint**~~ ✅ **FATTO**: procedura oRPC `compliance.exportUserData` — aggrega `User`, consensi, account collegati (senza token), `Activity[]` (incluso `rawJson`), `GearFunctional[]`, `GearDevice[]`, `UserStatistics[]` in un JSON scaricato dalla tab utente (`components/account/export-data-dialog.tsx`).
 
@@ -313,7 +315,7 @@ FEATURES DA IMPLEMENTARE:
 - Separato consenso biometrico           → prima sync Strava
 
 INFRASTRUTTURA:
-- Self-host font Geist                   → eliminare Google Fonts CDN
+- ~~Self-host font Geist~~ ✅ FATTO         → Google Fonts CDN eliminato (`lib/fonts/fonts.ts`)
 - Encryption at rest per token OAuth     → AES-256-GCM
 - WAF / Cloudflare                       → rate limiting + DDoS
 - Structured log aggregation             → Grafana Loki / Datadog
@@ -351,7 +353,7 @@ RETENTION
 
 SICUREZZA
 [x] Token OAuth Strava cifrati (AES-256-GCM) — Prisma `$extends`, backfill in `scripts/encrypt-account-tokens.ts`
-[ ] Google Fonts self-hosted (rimuovere CDN)
+[x] Google Fonts self-hosted (rimuovere CDN)
 [ ] Rate limiting su /api/auth/* e /api/rpc/*
 [ ] 2FA abilitato (opzionale per utenti)
 [ ] HTTP security headers (HSTS, CSP, X-Frame-Options)
