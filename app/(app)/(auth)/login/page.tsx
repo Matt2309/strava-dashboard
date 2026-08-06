@@ -9,8 +9,8 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 export const metadata: Metadata = {
-	title: "Sign In — Dromos",
-	description: "Sign in to your Dromos account",
+	title: "Accedi — Dromos",
+	description: "Accedi al tuo account Dromos",
 };
 
 export default function LoginPage() {
@@ -18,9 +18,9 @@ export default function LoginPage() {
 		<div className="flex min-h-screen items-center justify-center w-full lg:w-1/2 p-4">
 			<Card className="w-full max-w-sm">
 				<CardHeader className="space-y-1 text-center">
-					<CardTitle className="text-2xl">Welcome, athlete.</CardTitle>
+					<CardTitle className="text-2xl">Bentornato, atleta.</CardTitle>
 					<CardDescription>
-						Choose a method to access your account
+						Scegli un metodo per accedere al tuo account
 					</CardDescription>
 				</CardHeader>
 				<CardContent>

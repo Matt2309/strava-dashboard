@@ -1,6 +1,7 @@
 import { type JsonValue, jsonToToon } from "@jojojoseph/toon-json-converter";
 import { z } from "zod";
 import { FunctionalType, type Prisma } from "@/lib/generated/prisma/client";
+import { stripHealthDataKeys } from "@/lib/health-data";
 import { prisma } from "@/lib/prisma";
 import {
 	type Activity,
@@ -28,6 +29,7 @@ import {
 	subtractStatistics,
 	upsertStatistics,
 } from "@/server/repositories/statistics.repository";
+import { getHealthDataConsent } from "@/server/repositories/user.repository";
 
 // ---------------------------------------------------------------------------
 // Sport-type helpers
@@ -159,6 +161,10 @@ export async function getActivityDetail(
 		throw new StravaClientError("Invalid activity data from Strava API", 422);
 	}
 
+	// Art. 9 GDPR — don't surface health data the user hasn't consented to,
+	// even though it was read live from Strava (see gdpr-compliance-audit.md § 3 gap #7).
+	const { granted: healthDataAllowed } = await getHealthDataConsent(userId);
+
 	return {
 		id: parsed.data.id,
 		name: parsed.data.name,
@@ -169,8 +175,10 @@ export async function getActivityDetail(
 		type: parsed.data.type,
 		sport_type: parsed.data.sport_type,
 		start_date: parsed.data.start_date,
-		average_heartrate: parsed.data.average_heartrate,
-		suffer_score: parsed.data.suffer_score,
+		average_heartrate: healthDataAllowed
+			? parsed.data.average_heartrate
+			: undefined,
+		suffer_score: healthDataAllowed ? parsed.data.suffer_score : undefined,
 		gear: parsed.data.gear,
 		device_name: parsed.data.device_name,
 	};
@@ -196,7 +204,15 @@ export async function getActivityToonExport(
 		);
 	}
 
-	return jsonToToon(result.data as JsonValue);
+	// Art. 9 GDPR — strip health data keys from the raw payload too (this
+	// export serves the unparsed Strava response, which carries more health
+	// data keys than the parsed `Activity` shape).
+	const { granted: healthDataAllowed } = await getHealthDataConsent(userId);
+	const data = healthDataAllowed
+		? result.data
+		: stripHealthDataKeys(result.data as unknown as Record<string, unknown>);
+
+	return jsonToToon(data as JsonValue);
 }
 
 /**
@@ -239,8 +255,10 @@ export async function runInitialSync(userId: string): Promise<void> {
 	const activities = z.array(activitySchema).safeParse(activitiesResult.data);
 	if (!activities.success) return;
 
+	// Resolved once for the whole batch — avoids one consent query per activity.
+	const { granted: healthDataAllowed } = await getHealthDataConsent(userId);
 	for (const activity of activities.data) {
-		await persistStravaActivity(userId, activity);
+		await persistStravaActivity(userId, activity, healthDataAllowed);
 	}
 
 	// 3. Fetch and persist the user equipment
@@ -264,11 +282,21 @@ export async function runInitialSync(userId: string): Promise<void> {
  *
  * Uses a transaction to prevent race conditions between concurrent webhook
  * events or initial sync racing with webhooks.
+ *
+ * `healthDataAllowed` (Art. 9 GDPR — gdpr-compliance-audit.md § 3 gap #7) must
+ * be resolved by the caller: when `false`, health data keys (heart rate,
+ * suffer score) are stripped from both the dedicated columns and `rawJson`
+ * before persisting.
  */
 async function persistStravaActivity(
 	userId: string,
 	activity: Activity,
+	healthDataAllowed: boolean,
 ): Promise<void> {
+	if (!healthDataAllowed) {
+		activity = stripHealthDataKeys(activity);
+	}
+
 	const stravaId = String(activity.id);
 	const { sportName: newSportName, terrainType: newTerrainType } =
 		categorizeSportType(activity.sport_type);
@@ -481,7 +509,11 @@ async function handleWebhookCreate(
 	const parsed = activitySchema.safeParse(result.data);
 	if (!parsed.success) return;
 
-	await persistStravaActivity(userId, parsed.data);
+	// Art. 9 GDPR — webhooks bypass the Garage gate entirely (no UI in the
+	// loop), so an undecided user (healthDataConsent === null) must still be
+	// treated as not-allowed here (see gdpr-compliance-audit.md § 1.1).
+	const { granted: healthDataAllowed } = await getHealthDataConsent(userId);
+	await persistStravaActivity(userId, parsed.data, healthDataAllowed);
 }
 
 async function handleWebhookUpdate(

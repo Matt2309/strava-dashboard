@@ -1,7 +1,10 @@
 'use client'
 
-import { ChevronsUpDown, LogOut } from "lucide-react";
+import { ChevronsUpDown, Download, LogOut, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { DeleteAccountDialog } from "@/components/account/delete-account-dialog";
+import { ExportDataDialog } from "@/components/account/export-data-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
 	DropdownMenu,
@@ -26,6 +29,8 @@ export function NavUser() {
 
 	const { isMobile } = useSidebar();
 	const { data: session } = authClient.useSession();
+	const [exportOpen, setExportOpen] = useState(false);
+	const [deleteOpen, setDeleteOpen] = useState(false);
 
 	const user = session?.user;
 	const initials = user?.name
@@ -105,6 +110,20 @@ export function NavUser() {
 						</DropdownMenuGroup>
 						<DropdownMenuSeparator />
 						<DropdownMenuGroup>
+							<DropdownMenuItem onClick={() => setExportOpen(true)}>
+								<Download className="mr-2 size-4" />
+								Scarica i miei dati
+							</DropdownMenuItem>
+							<DropdownMenuItem
+								variant="destructive"
+								onClick={() => setDeleteOpen(true)}
+							>
+								<Trash2 className="mr-2 size-4" />
+								Elimina account
+							</DropdownMenuItem>
+						</DropdownMenuGroup>
+						<DropdownMenuSeparator />
+						<DropdownMenuGroup>
 							<DropdownMenuItem onClick={manageLogout}>
 								<LogOut className="mr-2 size-4" />
 								Log out
@@ -112,6 +131,8 @@ export function NavUser() {
 						</DropdownMenuGroup>
 					</DropdownMenuContent>
 				</DropdownMenu>
+				<ExportDataDialog open={exportOpen} onOpenChange={setExportOpen} />
+				<DeleteAccountDialog open={deleteOpen} onOpenChange={setDeleteOpen} />
 			</SidebarMenuItem>
 		</SidebarMenu>
 	);

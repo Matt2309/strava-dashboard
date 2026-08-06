@@ -12,6 +12,12 @@ export const proxy = async (request: NextRequest) => {
     if (request.nextUrl.pathname.startsWith(API_ROUTES["strava-webhook"].path)) {
         return NextResponse.next();
     }
+    // --- 1b. BYPASS PER IL CRON JOB DI PURGE ---
+    // Endpoint invocato da GitHub Actions, protetto da CRON_SECRET nel proprio
+    // handler: nessuna sessione utente da controllare qui.
+    if (request.nextUrl.pathname.startsWith(API_ROUTES["cron-purge"].path)) {
+        return NextResponse.next();
+    }
 
     const matchedRoute = Object.values(ROUTES).find((route) => {
         const matcher = match(route.path, {
@@ -55,6 +61,6 @@ export const config = {
 		 * - _next/image (image optimization files)
 		 * - favicon.ico (favicon file)
 		 */
-		"/((?!api/auth|api/strava/webhook||api/rpc|_next/static|_next/image|favicon.ico).*)",
+		"/((?!api/auth|api/strava/webhook|api/cron||api/rpc|_next/static|_next/image|favicon.ico).*)",
 	],
 };

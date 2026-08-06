@@ -6,10 +6,10 @@ import { ROUTES } from "@/lib/routes";
 
 export function ConnectStrava() {
 	const handleConnect = async () => {
-		await authClient.signIn.oauth2({
-			providerId: "strava",
-			callbackURL: ROUTES.home.path,
-		});
+        await authClient.oauth2.link({
+            providerId: "strava",
+            callbackURL: ROUTES.garage.path,
+        });
 	};
 
 	return <Button onClick={handleConnect}>Connect to Strava</Button>;

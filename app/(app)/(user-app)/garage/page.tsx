@@ -1,11 +1,69 @@
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { ConnectStrava } from "@/components/ConnectStrava";
 import { columns } from "@/components/garage/activities/table/columns";
 import { DataTable } from "@/components/garage/activities/table/data-table";
 import { EquipmentList } from "@/components/garage/gears/EquipmentList";
 import { SyncGearButton } from "@/components/garage/gears/SyncGearButton";
+import { HealthDataConsentGate } from "@/components/garage/health-data-consent-gate";
 import { SiteHeader } from "@/components/sidebar/site-header";
-import { getActivities } from "@/routers/strava";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { auth } from "@/lib/auth";
+import { getHealthDataConsentStatusProcedure } from "@/routers/compliance";
+import { getActivities, isStravaConnected } from "@/routers/strava";
 
 export default async function Home() {
+	const session = await auth.api.getSession({ headers: await headers() });
+
+	if (!session) {
+		redirect("/login");
+	}
+
+	const [stravaConnected] = await Promise.all([
+		isStravaConnected({ userId: session.user.id }),
+	]);
+
+	if (!stravaConnected) {
+		return (
+			<>
+				<SiteHeader title={"Garage"} />
+				<div className="flex flex-1 flex-col p-5">
+					<div className="flex h-[80vh] items-center justify-center">
+						<Card className="w-full max-w-sm">
+							<CardHeader>
+								<CardTitle className="text-center">Collega Strava</CardTitle>
+							</CardHeader>
+							<CardContent className="flex flex-col items-center justify-center p-6">
+								<p className="mb-4 text-center">
+									Per sincronizzare le tue attività e analizzare le performance,
+									collega il tuo account Strava.
+								</p>
+								<ConnectStrava />
+							</CardContent>
+						</Card>
+					</div>
+				</div>
+			</>
+		);
+	}
+
+	// Art. 9 GDPR — resolve the health data consent decision before the
+	// Garage triggers any sync (getActivities() -> getActivitiesForUser() ->
+	// runInitialSync() on a user's first visit). Showing the gate here keeps
+	// the consent scoped to the Garage section only, as decided in
+	// docs/gdpr-compliance-audit.md § 3 gap #7.
+	const healthDataConsent = await getHealthDataConsentStatusProcedure();
+	if (!healthDataConsent.decided) {
+		return (
+			<>
+				<SiteHeader title={"Garage"} />
+				<div className="flex flex-1 flex-col p-5">
+					<HealthDataConsentGate />
+				</div>
+			</>
+		);
+	}
+
 	const activities = await getActivities();
 	return (
 		<>

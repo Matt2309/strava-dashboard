@@ -92,28 +92,46 @@ export async function findActivitiesByUserId(userId: string) {
 }
 
 /**
- * Find activities that were synced more than `days` days ago and have not
- * yet been purged.
+ * Nullify raw GPS / JSON data for every activity synced before `cutoff` that
+ * has not yet been purged. Aggregated statistics remain untouched.
+ * Idempotent: already-purged rows are excluded by the isPurged filter.
+ *
+ * @returns The number of activity records that were purged.
  */
-export async function findActivitiesForPurge(days: number) {
-	const cutoff = new Date();
-	cutoff.setDate(cutoff.getDate() - days);
-
-	return prisma.activity.findMany({
-		where: {
-			createdAt: { lt: cutoff },
-			isPurged: false,
-		},
+export async function purgeActivitiesRawDataBefore(
+	cutoff: Date,
+): Promise<number> {
+	const { count } = await prisma.activity.updateMany({
+		where: { createdAt: { lt: cutoff }, isPurged: false },
+		data: { rawJson: Prisma.JsonNull, isPurged: true },
 	});
+
+	return count;
 }
 
 /**
- * Nullify raw GPS / JSON data for an activity and mark it as purged.
- * The aggregated statistics remain untouched.
+ * Erases health/biometric data (Art. 9 GDPR — average heart rate, suffer
+ * score) already collected for a user, both from the dedicated columns and
+ * from `rawJson`. Called when the user refuses or revokes health data
+ * consent (see docs/gdpr-compliance-audit.md § 3 gap #7).
+ *
+ * The `jsonb_typeof(...) = 'object'` guard is required: already-purged rows
+ * have `rawJson` set to JSON `null`, and Postgres' jsonb `-` operator raises
+ * an error when applied to a non-object value.
+ *
+ * @returns The number of activity records whose columns were nulled out.
  */
-export async function purgeActivityRawData(id: string) {
-	return prisma.activity.update({
-		where: { id },
-		data: { rawJson: Prisma.JsonNull, isPurged: true },
+export async function eraseHealthDataForUser(userId: string): Promise<number> {
+	await prisma.$executeRaw`
+		UPDATE activities
+		SET "rawJson" = "rawJson" - 'average_heartrate' - 'suffer_score'
+		WHERE "userId" = ${userId} AND jsonb_typeof("rawJson") = 'object'
+	`;
+
+	const { count } = await prisma.activity.updateMany({
+		where: { userId },
+		data: { averageHeartrate: null, sufferScore: null },
 	});
+
+	return count;
 }
