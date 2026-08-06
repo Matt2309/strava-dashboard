@@ -6,6 +6,7 @@ export type RouteName =
 	| "activity-detail"
 	| "privacy-policy"
 	| "terms-conditions"
+	| "privacy-settings"
 	| "not-found";
 
 export type ApiRouteName = "auth" | "rpc" | "strava-webhook" | "cron-purge";
@@ -61,6 +62,10 @@ export const ROUTES = {
 	"terms-conditions": {
 		path: "/terms-conditions",
 		access: RouteAccess.PUBLIC,
+	},
+	"privacy-settings": {
+		path: "/settings/privacy",
+		access: RouteAccess.PRIVATE,
 	},
 	"not-found": {
 		path: "/not-found",

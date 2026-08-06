@@ -28,3 +28,13 @@ export const useDeleteAccount = () => {
 		mutationFn: () => deleteAccountProcedure.call({}),
 	});
 };
+
+// --- healthDataConsent (Art. 9 — separate consent for HR / suffer score) ---
+const setHealthDataConsentProcedure =
+	orpcClient.compliance.setHealthDataConsent;
+export const useSetHealthDataConsent = () => {
+	return useMutation({
+		mutationFn: (input: { granted: boolean }) =>
+			setHealthDataConsentProcedure.call(input),
+	});
+};

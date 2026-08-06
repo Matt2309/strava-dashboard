@@ -29,6 +29,11 @@ model User {
   privacyConsentTimestamp DateTime?
   termsConsentTimestamp   DateTime?
 
+  // Art. 9 GDPR — separate consent for health/biometric data (HR, suffer score).
+  // null = never decided (shows the gate in Garage), true = granted, false = refused/revoked.
+  healthDataConsent          Boolean?
+  healthDataConsentTimestamp DateTime?
+
   // Relations to track which legal document version the user has accepted
   PrivacyPolicy     PrivacyPolicy?   @relation(fields: [privacyPolicyId], references: [id])
   privacyPolicyId   String?

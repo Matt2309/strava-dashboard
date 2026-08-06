@@ -84,6 +84,21 @@ export const auth = betterAuth({
 				required: false,
 				input: false,
 			},
+			// Art. 9 GDPR — health data consent (heart rate, suffer score), only
+			// ever written server-side by the compliance router (see
+			// routers/compliance.ts, setHealthDataConsent), after the user
+			// decides in the Garage gate or the privacy settings page.
+			// `input: false` prevents a client from self-certifying this via signUp.
+			healthDataConsent: {
+				type: "boolean",
+				required: false,
+				input: false,
+			},
+			healthDataConsentTimestamp: {
+				type: "date",
+				required: false,
+				input: false,
+			},
 		},
 	},
 	plugins: [

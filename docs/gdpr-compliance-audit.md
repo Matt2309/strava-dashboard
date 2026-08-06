@@ -41,9 +41,9 @@
 | Consenso esplicito (opt-in, non pre-checked) | ✅ CONFORME | `RegisterForm.tsx`: `policyAccepted` inizia `false`, checkbox unchecked, submit disabilitato finché non spuntato. `LoginForm.tsx` (Google/Strava): nessuna checkbox nel form stesso, ma il consenso viene richiesto obbligatoriamente dal `LegalConsentWall` al primo accesso post-OAuth, prima che l'utente veda qualunque contenuto |
 | Tracciato con timestamp + versione policy | ✅ CONFORME | `privacyConsentTimestamp`, `privacyPolicyId` (e i corrispettivi per `termsConditions`) salvati sul `User`; `acceptLegalDocuments` li aggiorna solo su azione esplicita dell'utente |
 | Meccanismo di REVOCA del consenso | ⚠️ PARZIALE | **Aggiornamento 2026-08-03**: aggiunto "Elimina account" nella tab utente (`components/sidebar/nav-user.tsx`), che copre la revoca totale (cancellazione dell'account) via procedura oRPC `compliance.deleteAccount`. Manca ancora una revoca *parziale* granulare (es. solo analytics) senza cancellare l'intero account — vedi punto 7.1 |
-| Consenso granulare (analytics vs dati attività vs salute) | ❌ NON CONFORME | Il consenso è binario: accetti tutto o non usi l'app. `averageHeartrate` (dato sanitario) non ha consenso separato |
-| Cosa succede se l'utente revoca | ⚠️ PARZIALE | Il flusso di revoca implementato è "elimina account": `compliance.deleteAccount` revoca l'autorizzazione Strava (best-effort) e cancella permanentemente `User` (cascade Prisma su `Session`, `Account`, `Activity`, `GearFunctional`, `GearDevice`, `UserStatistics`). Non esiste un percorso di revoca che mantenga l'account attivo con trattamento ridotto |
-| Consenso raccolto prima di qualunque elaborazione dati (incl. via API/webhook) | ⚠️ PARZIALE | Il gate vive nel layout `(user-app)`, quindi copre le pagine ma non le procedure oRPC né `/api/strava/webhook`: un'attività potrebbe teoricamente essere persistita via webhook per un utente che non ha ancora attraversato il `LegalConsentWall`. Da valutare come follow-up |
+| Consenso granulare (analytics vs dati attività vs salute) | ✅ CONFORME | **Aggiornamento 2026-08-06**: aggiunto un consenso separato per i dati sanitari (Art. 9 GDPR — `averageHeartrate`, `sufferScore`), richiesto solo entrando nella sezione Garage (`components/garage/health-data-consent-gate.tsx`), prima che `getActivities()` possa innescare `runInitialSync()`. Rifiutare non blocca il Garage: attività, attrezzatura e statistiche restano sincronizzate, solo i due campi sanitari non vengono salvati né letti. Vedi § 3 gap #7 |
+| Cosa succede se l'utente revoca | ⚠️ PARZIALE | Il flusso di revoca "elimina account" (`compliance.deleteAccount`) resta l'unico per la revoca *totale*. **Aggiornamento 2026-08-06**: esiste ora anche una revoca *parziale* per i soli dati sanitari, gestibile dalla pagina `/settings/privacy` (`compliance.setHealthDataConsent`) senza cancellare l'account — la revoca erase anche i dati già raccolti (`eraseHealthDataForUser`). Non esiste ancora un percorso di revoca granulare per altri trattamenti (es. analytics/GTM, vedi gap #8) |
+| Consenso raccolto prima di qualunque elaborazione dati (incl. via API/webhook) | ⚠️ PARZIALE | Il gate legale vive nel layout `(user-app)`, quindi copre le pagine ma non le procedure oRPC né `/api/strava/webhook`. **Aggiornamento 2026-08-06**: per i dati sanitari questa falla è ora chiusa — `handleWebhookCreate` in `server/services/strava.service.ts` risolve il consenso (`getHealthDataConsent`) prima di persistere, e un utente che non ha ancora deciso (`healthDataConsent === null`) è trattato come non-consenziente. Resta invece invariato per il consenso legale generico (Privacy Policy/Termini): un'attività può ancora essere persistita via webhook per un utente che non ha attraversato il `LegalConsentWall` |
 
 #### 1.2 Privacy Notice
 
@@ -62,8 +62,8 @@
 
 | Punto | Stato | Motivazione |
 |-------|-------|-------------|
-| Solo dati necessari | ⚠️ PARZIALE | `averageHeartrate`, `sufferScore` e `rawJson` (GPS completo) vengono salvati. `rawJson` contiene l'intera risposta Strava API: GPS, frequenza cardiaca, potenza, ecc. — dati di categoria speciale (Art. 9 GDPR) |
-| Documentazione su perché ogni campo sensibile è obbligatorio | ❌ NON CONFORME | Nessun commento/doc che spiega la necessità di `averageHeartrate` o `sufferScore` per la funzionalità core |
+| Solo dati necessari | ⚠️ PARZIALE | `averageHeartrate` e `sufferScore` sono dati di categoria speciale (Art. 9 GDPR). **Correzione 2026-08-06 rispetto alla diagnosi originale**: `rawJson` non contiene l'intera risposta Strava API — `activitySchema` (`lib/types.ts`) è un oggetto Zod che strippa ogni chiave non dichiarata durante il parsing in `persistStravaActivity`, quindi `rawJson` contiene solo il sottoinsieme parsato (incluse le due chiavi sanitarie sopra, nessun GPS/potenza). La risposta grezza e non filtrata è invece esposta solo dall'export TOON (`getActivityToonExport`), letta live da Strava e non persistita |
+| Documentazione su perché ogni campo sensibile è obbligatorio | ⚠️ PARZIALE | **Aggiornamento 2026-08-06**: `averageHeartrate`/`sufferScore` non sono più raccolti incondizionatamente — richiedono il consenso separato di § 3 gap #7 (risolto). Manca ancora una motivazione documentata di *perché* siano necessari per la funzionalità core, a prescindere dal consenso |
 | Dati usati solo per scopi dichiarati | ⚠️ PARZIALE | GTM viene caricato su **tutte le pagine** incluse quelle autenticate, potenzialmente tracciando comportamenti dell'utente autenticato. `analytics_storage` è `denied` by default, ma GTM stesso si carica sempre |
 
 #### 2.2 Crittografia
@@ -120,7 +120,7 @@
 | Art. 15 — Right of Access (scarica tutti i dati) | ✅ CONFORME | **Aggiornamento 2026-08-03**: "Scarica i miei dati" in tab utente → procedura oRPC `compliance.exportUserData`, scarica un file JSON (profilo, consensi, account collegati senza token, attività incluso `rawJson` non ancora purgato, gear, statistiche) |
 | Art. 16 — Rectification (correggi dati) | ❌ NON CONFORME | Nessuna UI di profilo per modificare nome/email visibile nel codice |
 | Art. 20 — Portability (export machine-readable) | ✅ CONFORME | Lo stesso export di cui sopra produce JSON strutturato, leggibile da macchina — soddisfa anche la portabilità, oltre a `exportToToon` che resta un export per singola attività ad uso diverso |
-| Art. 21 — Right to Object / opt-out per trattamento | ❌ NON CONFORME | Nessuna UI per gestire preferenze analytics o opt-out da specifici trattamenti. GTM consent mode è gestito solo nel codice, non dall'utente |
+| Art. 21 — Right to Object / opt-out per trattamento | ⚠️ PARZIALE | **Aggiornamento 2026-08-06**: opt-out granulare disponibile per i dati sanitari (HR/suffer score) da `/settings/privacy`. Nessuna UI per gestire preferenze analytics o opt-out dal trattamento GTM (resta gap #8) |
 
 ---
 
@@ -234,9 +234,9 @@
 | 4 | ~~**Token OAuth Strava in plaintext nel DB**~~ | ✅ RISOLTO | Cifrati AES-256-GCM (`ENCRYPTION_KEY`) via Prisma `$extends` (`lib/prisma-extensions/account-token-encryption.ts`), trasparente per tutti i call site incluso better-auth. Righe legacy in plaintext restano leggibili (passthrough) — nessun downtime; backfill idempotente in `scripts/encrypt-account-tokens.ts`. Rotazione/versioning della chiave non ancora implementati (follow-up) |
 | 5 | ~~**Google Fonts caricati da CDN Google**~~ | ✅ RISOLTO | `@import` di Inter da `fonts.googleapis.com` rimosso da `app/globals.css`; Inter e Geist Mono ora self-hosted via `next/font/local` (`lib/fonts/fonts.ts`) |
 | 6 | ~~**Nessun Rate Limiting**~~ | ✅ RISOLTO | `/api/auth`: rate limiter nativo `better-auth` configurato esplicitamente in `lib/auth.ts` (regole dedicate su sign-in/sign-up/oauth2). `/api/rpc`: limiter dedicato in-memory (`lib/rate-limit.ts`) applicato nel route handler. Nessuna nuova dipendenza esterna |
-| 7 | **Consenso non granulare** — `averageHeartrate` è dato sanitario (Art. 9) | 🟠 ALTO | Aggiungere consenso esplicito separato per "dati biometrici/sanitari" prima di sincronizzare attività con HR |
+| 7 | ~~**Consenso non granulare** — `averageHeartrate` è dato sanitario (Art. 9)~~ | ✅ RISOLTO | **Aggiornamento 2026-08-06**: consenso separato ed esplicito per i dati sanitari, richiesto solo nella sezione Garage (`components/garage/health-data-consent-gate.tsx`), prima di qualunque sync (`getActivities()` → `runInitialSync()`). Rifiutare non blocca il Garage (Art. 7(4)): attività/gear/statistiche restano, solo HR e suffer score non vengono salvati né letti. Enforcement completo lato server — `persistStravaActivity` (initial sync + webhook `create`), `getActivityDetail`, `getActivityToonExport` — non solo lato UI. Revocabile in qualunque momento da `/settings/privacy` (`compliance.setHealthDataConsent`), con cancellazione dei dati già raccolti (`eraseHealthDataForUser`). Nessun backfill retroattivo se il consenso viene concesso in un secondo momento (scelta deliberata, non un gap) |
 | 8 | **GTM si carica su tutte le pagine autenticate** senza consenso utente | 🟠 ALTO | Implementare CMP (Consent Management Platform) lato utente; non caricare GTM finché l'utente non consente analytics |
-| 9 | **Nessuna revoca del consenso** | 🟠 ALTO | Pagina "Privacy Dashboard" con toggle per revocare consenso; se revocato, bloccare elaborazione e avviare processo di cancellazione |
+| 9 | ~~**Nessuna revoca del consenso**~~ | ⚠️ PARZIALE | **Aggiornamento 2026-08-06**: aggiunta la pagina `/settings/privacy` con una revoca granulare per i dati sanitari (gap #7, risolto) — non richiede più di cancellare l'intero account per fermare quel trattamento. Manca ancora un toggle di revoca per gli analytics/GTM (gap #8, ancora aperto) |
 | 10 | **Nessun audit log** per accessi/modifiche dati sensibili | 🟡 MEDIO | Structured logging (Pino/Winston) con log di ogni chiamata a procedure che accedono a dati personali |
 | 11 | **Nessun 2FA** | 🟡 MEDIO | Abilitare il plugin `twoFactor` di `better-auth` in `lib/auth.ts` |
 | 12 | **Consenso history sovrascritta** | 🟡 MEDIO | Tabella `ConsentHistory` con foreign key su `User`, append-only, per ogni accettazione/revoca |
@@ -334,9 +334,9 @@ DOCUMENTAZIONE (non codice):
 
 ```
 CONSENSO
-[ ] Consenso granulare per dati biometrici (Art. 9)
-[ ] Privacy Dashboard con toggle per tipo trattamento
-[~] Flusso di revoca del consenso implementato — solo come "elimina account" (compliance.deleteAccount); manca una revoca parziale che non cancelli l'intero account
+[x] Consenso granulare per dati biometrici (Art. 9) — health-data-consent-gate nel Garage, revoca da /settings/privacy, erasure dei dati già raccolti su rifiuto/revoca
+[~] Privacy Dashboard con toggle per tipo trattamento — /settings/privacy esiste con il toggle per i dati sanitari; manca ancora il toggle analytics/GTM
+[x] Flusso di revoca del consenso implementato — "elimina account" (compliance.deleteAccount) per la revoca totale; compliance.setHealthDataConsent per la revoca parziale dei dati sanitari senza cancellare l'account
 [ ] CMP per analytics/GTM con scelta utente
 [ ] ConsentHistory table per audit trail
 
@@ -344,7 +344,7 @@ DIRITTI UTENTE
 [x] Right to Erasure con conferma — procedura oRPC compliance.deleteAccount, UI in tab utente (non un endpoint REST separato)
 [x] Right of Access + Portability (JSON) — procedura oRPC compliance.exportUserData, UI in tab utente
 [ ] UI profilo per rettifica dati (nome, email)
-[ ] Pagina /settings/privacy operativa
+[x] Pagina /settings/privacy operativa — consenso dati sanitari, link ai documenti legali, export/delete account
 
 RETENTION
 [x] purgeStaleActivityData() invocata da cron job ogni 24h

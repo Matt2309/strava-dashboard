@@ -18,6 +18,8 @@ import {
 import {
 	deleteUserAccount,
 	exportUserData,
+	getHealthDataConsentStatus,
+	setHealthDataConsentDecision,
 } from "@/server/services/compliance.service";
 
 async function getUserIdFromSession(): Promise<string> {
@@ -133,6 +135,35 @@ export const deleteAccount = os
 	.use(errorHandlerMiddleware)
 	.callable();
 
+/**
+ * Current health data consent status (Art. 9 GDPR — heart rate, suffer
+ * score) for the current user. Used by the Garage gate and the privacy
+ * settings page.
+ */
+export const getHealthDataConsentStatusProcedure = os
+	.handler(async () => {
+		const userId = await getUserIdFromSession();
+		return getHealthDataConsentStatus(userId);
+	})
+	.use(errorHandlerMiddleware)
+	.callable();
+
+/**
+ * Records the current user's explicit decision on health data consent.
+ * Refusing or revoking also erases any health data already collected
+ * (see server/services/compliance.service.ts).
+ */
+export const setHealthDataConsentProcedure = os
+	.input(z.object({ granted: z.boolean() }))
+	.handler(async ({ input }) => {
+		const userId = await getUserIdFromSession();
+		const result = await setHealthDataConsentDecision(userId, input.granted);
+		revalidatePath("/", "layout");
+		return result;
+	})
+	.use(errorHandlerMiddleware)
+	.callable();
+
 export const complianceRouter = os.router({
 	retrieveLatestPolicy,
 	isUserAcceptedLastPolicy,
@@ -142,4 +173,6 @@ export const complianceRouter = os.router({
 	acceptLegalDocuments,
 	exportUserData: exportUserDataProcedure,
 	deleteAccount,
+	getHealthDataConsentStatus: getHealthDataConsentStatusProcedure,
+	setHealthDataConsent: setHealthDataConsentProcedure,
 });

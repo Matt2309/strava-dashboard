@@ -1,8 +1,14 @@
 import { deauthorizeStrava } from "@/server/infrastructure/strava.client";
-import { purgeActivitiesRawDataBefore } from "@/server/repositories/activity.repository";
+import {
+	eraseHealthDataForUser,
+	purgeActivitiesRawDataBefore,
+} from "@/server/repositories/activity.repository";
 import {
 	collectUserDataForExport,
 	deleteUserById,
+	getHealthDataConsent,
+	type HealthDataConsentStatus,
+	setHealthDataConsent,
 } from "@/server/repositories/user.repository";
 
 const PURGE_AFTER_DAYS = 7;
@@ -61,4 +67,34 @@ export async function deleteUserAccount(userId: string) {
 	await deauthorizeStrava(userId);
 	await deleteUserById(userId);
 	return { deleted: true };
+}
+
+/**
+ * Current health data consent decision for the user (Art. 9 GDPR — heart
+ * rate, suffer score). `decided: false` means the Garage gate should be
+ * shown before any activity sync runs.
+ */
+export async function getHealthDataConsentStatus(
+	userId: string,
+): Promise<HealthDataConsentStatus> {
+	return getHealthDataConsent(userId);
+}
+
+/**
+ * Records the user's health data consent decision. Refusing or revoking
+ * (`granted: false`) also erases any health data already collected — the
+ * consent must be as easy to withdraw as it was to give (Art. 7(3)), and
+ * withdrawal should actually stop the processing, not just future writes.
+ */
+export async function setHealthDataConsentDecision(
+	userId: string,
+	granted: boolean,
+) {
+	await setHealthDataConsent(userId, granted);
+
+	if (!granted) {
+		await eraseHealthDataForUser(userId);
+	}
+
+	return { granted };
 }

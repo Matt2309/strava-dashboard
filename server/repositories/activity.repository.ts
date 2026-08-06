@@ -108,3 +108,30 @@ export async function purgeActivitiesRawDataBefore(
 
 	return count;
 }
+
+/**
+ * Erases health/biometric data (Art. 9 GDPR — average heart rate, suffer
+ * score) already collected for a user, both from the dedicated columns and
+ * from `rawJson`. Called when the user refuses or revokes health data
+ * consent (see docs/gdpr-compliance-audit.md § 3 gap #7).
+ *
+ * The `jsonb_typeof(...) = 'object'` guard is required: already-purged rows
+ * have `rawJson` set to JSON `null`, and Postgres' jsonb `-` operator raises
+ * an error when applied to a non-object value.
+ *
+ * @returns The number of activity records whose columns were nulled out.
+ */
+export async function eraseHealthDataForUser(userId: string): Promise<number> {
+	await prisma.$executeRaw`
+		UPDATE activities
+		SET "rawJson" = "rawJson" - 'average_heartrate' - 'suffer_score'
+		WHERE "userId" = ${userId} AND jsonb_typeof("rawJson") = 'object'
+	`;
+
+	const { count } = await prisma.activity.updateMany({
+		where: { userId },
+		data: { averageHeartrate: null, sufferScore: null },
+	});
+
+	return count;
+}

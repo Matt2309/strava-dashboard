@@ -53,3 +53,49 @@ export async function collectUserDataForExport(userId: string) {
 export async function deleteUserById(userId: string) {
 	return prisma.user.delete({ where: { id: userId } });
 }
+
+export type HealthDataConsentStatus = {
+	/** false if the user has never made a decision — the Garage gate should show. */
+	decided: boolean;
+	granted: boolean;
+	timestamp: Date | null;
+};
+
+/**
+ * Art. 9 GDPR — separate consent for health/biometric data (heart rate,
+ * suffer score). `healthDataConsent` is `null` until the user makes an
+ * explicit choice in the Garage gate or the privacy settings page.
+ */
+export async function getHealthDataConsent(
+	userId: string,
+): Promise<HealthDataConsentStatus> {
+	const user = await prisma.user.findUnique({
+		where: { id: userId },
+		select: { healthDataConsent: true, healthDataConsentTimestamp: true },
+	});
+
+	if (!user) {
+		throw new Error("User not found");
+	}
+
+	return {
+		decided: user.healthDataConsent !== null,
+		granted: user.healthDataConsent === true,
+		timestamp: user.healthDataConsentTimestamp,
+	};
+}
+
+/**
+ * Records the user's explicit decision on health data consent. Called only
+ * server-side from the compliance router — never trust a client-supplied
+ * value beyond the boolean choice itself.
+ */
+export async function setHealthDataConsent(userId: string, granted: boolean) {
+	return prisma.user.update({
+		where: { id: userId },
+		data: {
+			healthDataConsent: granted,
+			healthDataConsentTimestamp: new Date(),
+		},
+	});
+}

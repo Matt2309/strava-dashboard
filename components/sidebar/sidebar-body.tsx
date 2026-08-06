@@ -1,6 +1,6 @@
 "use client";
 
-import { Dumbbell, LucideWrench, Timer, Shield } from "lucide-react";
+import { Dumbbell, LucideWrench, Timer, Shield, ShieldCheck } from "lucide-react";
 import type * as React from "react";
 import { NavMain } from "@/components/sidebar/nav-main";
 import { NavUser } from "@/components/sidebar/nav-user";
@@ -71,12 +71,12 @@ export function SidebarBody({
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton
-                            onClick={() => router.push(ROUTES["privacy-policy"].path)}
+                            onClick={() => router.push(ROUTES["privacy-settings"].path)}
                             className="text-neutral-500"
-                            tooltip="Privacy Policy"
+                            tooltip="Impostazioni privacy"
                         >
-                            <Shield />
-                            <span>Privacy Policy</span>
+                            <ShieldCheck />
+                            <span>Impostazioni privacy</span>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
