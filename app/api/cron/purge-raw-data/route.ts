@@ -1,6 +1,9 @@
 import { timingSafeEqual } from "node:crypto";
 import { type NextRequest, NextResponse } from "next/server";
-import { purgeStaleActivityData } from "@/server/services/compliance.service";
+import {
+	purgeStaleActivityData,
+	purgeStaleAuditLogs,
+} from "@/server/services/compliance.service";
 
 export const dynamic = "force-dynamic";
 
@@ -44,9 +47,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
 	try {
 		const purged = await purgeStaleActivityData();
+		const auditLogsPurged = await purgeStaleAuditLogs();
 
 		return NextResponse.json({
 			purged,
+			auditLogsPurged,
 			durationMs: Math.round(performance.now() - startedAt),
 			at: new Date().toISOString(),
 		});

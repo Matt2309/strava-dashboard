@@ -7,16 +7,6 @@ export async function getLatestTerms() {
 	});
 }
 
-export async function updateTermsAcceptance(userId: string, termsId: string) {
-	return prisma.user.update({
-		where: { id: userId },
-		data: {
-			termsConditionsId: termsId,
-			termsConsentTimestamp: new Date(),
-		},
-	});
-}
-
 export async function checkUserTermsCompliance(userId: string) {
 	const user = await prisma.user.findUnique({
 		where: { id: userId },

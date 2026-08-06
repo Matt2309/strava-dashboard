@@ -103,7 +103,7 @@
 | L'utente può richiedere cancellazione di tutti i dati | ✅ CONFORME | **Aggiornamento 2026-08-03**: "Elimina account" in tab utente → procedura oRPC `compliance.deleteAccount`, con conferma a 2 step (l'utente deve digitare "ELIMINA"). Best-effort revoca anche l'autorizzazione Strava (`POST /oauth/deauthorize`) prima di cancellare |
 | Cancellazione permanente | ✅ CONFORME | Prisma `onDelete: Cascade` su `Session`, `Account`, `Activity`, `GearFunctional`, `GearDevice`, `UserStatistics` — ora effettivamente attivato da `prisma.user.delete` in `server/repositories/user.repository.ts` (`deleteUserById`), chiamato da `deleteUserAccount()` nel service. Nota: `PrivacyPolicy`/`TermsConditions` sono sul lato opposto della relazione (FK su `User`), quindi il record di consenso storico dell'utente sparisce con l'account — coerente con l'erasure ma da tenere presente se in futuro serve provare lo storico consensi anche dopo la cancellazione |
 | Latenza documentata | ❌ NON CONFORME | La cancellazione è sincrona e immediata lato codice, ma non esiste un documento che dichiari una latenza massima (es. "entro 30 giorni") come richiesto dall'Art. 12(3) per le richieste formali |
-| Procedura di verifica cancellazione | ⚠️ PARZIALE | Il redirect a `/login` post-cancellazione e l'impossibilità di autenticarsi con le stesse credenziali fungono da verifica implicita lato utente. Manca una procedura documentata/audit log che attesti la cancellazione per finalità di accountability (Art. 5(2)) |
+| Procedura di verifica cancellazione | ✅ CONFORME | **Aggiornamento 2026-08-06**: oltre al redirect a `/login` (verifica implicita lato utente), `deleteUserAccount` registra un evento `ACCOUNT_DELETED` in `AuditLog` prima della cancellazione, poi pseudonimizza (hash SHA-256) l'intera audit trail dell'utente — prova interna, verificabile a posteriori, che l'erasure è avvenuta e quando (Art. 5(2) accountability) |
 
 #### 3.3 Anonymizzazione
 
@@ -198,9 +198,15 @@
 
 | Punto | Stato | Motivazione |
 |-------|-------|-------------|
-| Accesso a dati sensibili loggato | ❌ NON CONFORME | Nessun log di accesso strutturato |
-| Modifiche ai dati loggate | ❌ NON CONFORME | `updatePolicyAcceptance` sovrascrive `privacyConsentTimestamp` — nessuna storia delle versioni precedenti |
-| Consent history | ⚠️ PARZIALE | Timestamp dell'ultima accettazione presente, ma non storia completa (se l'utente ha accettato v1, poi v2, v3, rimane solo v3) |
+| Accesso a dati sensibili loggato | ⚠️ PARZIALE | **Aggiornamento 2026-08-06**: introdotta la tabella `AuditLog` (append-only, `server/repositories/audit-log.repository.ts`), popolata per consensi (policy/termini/dati sanitari), diritti GDPR (`DATA_EXPORTED`, `ACCOUNT_DELETED`, `HEALTH_DATA_ERASED`) ed eventi di autenticazione (`USER_REGISTERED`, `LOGIN`, `LOGOUT` via `databaseHooks` in `lib/auth.ts`). Resta fuori scope l'accesso a singole attività (`getActivityDetail`/`getActivityToonExport`): volume alto, crescita illimitata, non tracciato per scelta esplicita |
+| Modifiche ai dati loggate | ✅ CONFORME | **Aggiornamento 2026-08-06**: `recordLegalConsent` (accettazione policy/termini) e `setHealthDataConsent` scrivono la mutazione e il relativo evento di audit nella stessa transazione Prisma — un consenso registrato senza prova è considerato peggio di nessun consenso, quindi le due scritture vivono o muoiono insieme |
+| Consent history | ✅ CONFORME | **Aggiornamento 2026-08-06**: risolto — `AuditLog` è append-only, quindi l'accettazione di v1, poi v2, poi v3 produce tre righe distinte con `metadata.version`, invece di sovrascrivere un unico timestamp su `User` |
+
+**Scelte di design** (vedi `CLAUDE.md` § Audit trail per i dettagli implementativi):
+- Nessun IP/user-agent registrato su alcuna riga — coerente con la posizione di data-minimization già presa in `lib/rate-limit.ts`
+- Retention 24 mesi, purge automatico nel cron notturno esistente (`purgeStaleAuditLogs`, insieme a `purgeStaleActivityData`)
+- Alla cancellazione account, `AuditLog` non viene cancellato a cascata (nessuna foreign key verso `User` per design) ma pseudonimizzato: `subjectId` sostituito da un hash SHA-256 dell'id originale, per conservare la prova dell'erasure (Art. 5(2) accountability) senza lasciare un identificativo direttamente attribuibile
+- Ogni scrittura di audit non transazionale passa da `recordAuditEventSafe` (fail-safe): un fallimento nella scrittura del log non deve mai bloccare un login, un export o una cancellazione account
 
 ---
 
@@ -237,9 +243,9 @@
 | 7 | ~~**Consenso non granulare** — `averageHeartrate` è dato sanitario (Art. 9)~~ | ✅ RISOLTO | **Aggiornamento 2026-08-06**: consenso separato ed esplicito per i dati sanitari, richiesto solo nella sezione Garage (`components/garage/health-data-consent-gate.tsx`), prima di qualunque sync (`getActivities()` → `runInitialSync()`). Rifiutare non blocca il Garage (Art. 7(4)): attività/gear/statistiche restano, solo HR e suffer score non vengono salvati né letti. Enforcement completo lato server — `persistStravaActivity` (initial sync + webhook `create`), `getActivityDetail`, `getActivityToonExport` — non solo lato UI. Revocabile in qualunque momento da `/settings/privacy` (`compliance.setHealthDataConsent`), con cancellazione dei dati già raccolti (`eraseHealthDataForUser`). Nessun backfill retroattivo se il consenso viene concesso in un secondo momento (scelta deliberata, non un gap) |
 | 8 | **GTM si carica su tutte le pagine autenticate** senza consenso utente | 🟠 ALTO | Implementare CMP (Consent Management Platform) lato utente; non caricare GTM finché l'utente non consente analytics |
 | 9 | ~~**Nessuna revoca del consenso**~~ | ⚠️ PARZIALE | **Aggiornamento 2026-08-06**: aggiunta la pagina `/settings/privacy` con una revoca granulare per i dati sanitari (gap #7, risolto) — non richiede più di cancellare l'intero account per fermare quel trattamento. Manca ancora un toggle di revoca per gli analytics/GTM (gap #8, ancora aperto) |
-| 10 | **Nessun audit log** per accessi/modifiche dati sensibili | 🟡 MEDIO | Structured logging (Pino/Winston) con log di ogni chiamata a procedure che accedono a dati personali |
+| 10 | ~~**Nessun audit log** per accessi/modifiche dati sensibili~~ | ✅ RISOLTO | **Aggiornamento 2026-08-06**: tabella `AuditLog` append-only (`prisma/schema.prisma`), scritta da `server/repositories/audit-log.repository.ts` per consensi, diritti GDPR (export/delete/erasure sanitaria) ed eventi di autenticazione. Nessuna libreria esterna (Pino/Winston) introdotta — un DB append-only è più durevole e interrogabile di log stdout su Docker senza aggregazione, e resta comunque disponibile come follow-up per il logging operativo (non di compliance). Scritture non transazionali sempre fail-safe via `recordAuditEventSafe`. Deliberatamente escluso l'accesso a singole attività (volume alto, crescita illimitata) |
 | 11 | **Nessun 2FA** | 🟡 MEDIO | Abilitare il plugin `twoFactor` di `better-auth` in `lib/auth.ts` |
-| 12 | **Consenso history sovrascritta** | 🟡 MEDIO | Tabella `ConsentHistory` con foreign key su `User`, append-only, per ogni accettazione/revoca |
+| 12 | ~~**Consenso history sovrascritta**~~ | ✅ RISOLTO | **Aggiornamento 2026-08-06**: `recordLegalConsent` (`server/repositories/legal-consent.repository.ts`) e `setHealthDataConsent` (`server/repositories/user.repository.ts`) scrivono la mutazione su `User` e il relativo evento `AuditLog` (`POLICY_ACCEPTED`/`TERMS_ACCEPTED`/`HEALTH_DATA_CONSENT_GRANTED`/`HEALTH_DATA_CONSENT_REVOKED`) nella stessa transazione Prisma, con `metadata.version` del documento accettato. `AuditLog` non ha foreign key su `User` (per design, vedi gap #10) — è pseudonimizzato, non cancellato a cascata, alla cancellazione account |
 | 13 | **Nessun DPA register documentato** | 🟡 MEDIO | Creare documento interno con lista sub-processor, DPA firmati, SCCs per trasferimenti extra-EU |
 | 14 | **Records of Processing (Art. 30) mancanti** | 🟡 MEDIO | Documento formale con finalità, base legale, categorie dati, retention per ogni trattamento |
 | 15 | **Nessuna procedura breach notification** | 🟡 MEDIO | Procedura scritta: chi avvisare, template notifica Garante Privacy, latenza 72h |
@@ -270,11 +276,11 @@
 
 ### Mese 2 (Gap medi + audit interno)
 
-9. **Consenso biometrico separato**: mostrare modal prima della prima sincronizzazione Strava che spiega la raccolta di `averageHeartrate` e richiede consenso esplicito separato.
+9. ~~**Consenso biometrico separato**~~ ✅ **FATTO**: `components/garage/health-data-consent-gate.tsx`, vedi gap #7.
 
-10. **Structured logging**: sostituire `console.error` con Pino; aggiungere log di audit per `updatePolicyAcceptance`, `deleteUser`, `exportData`.
+10. ~~**Structured logging / audit trail**~~ ✅ **FATTO**: tabella `AuditLog` append-only (`prisma/schema.prisma`) invece di Pino — vedi gap #10. Copre consensi (`recordLegalConsent`, `setHealthDataConsent`), diritti GDPR (`exportUserData` → `DATA_EXPORTED`, `deleteUserAccount` → `ACCOUNT_DELETED`, `setHealthDataConsentDecision` → `HEALTH_DATA_ERASED`) ed eventi di autenticazione (`databaseHooks` in `lib/auth.ts` → `USER_REGISTERED`/`LOGIN`/`LOGOUT`).
 
-11. **Tabella `ConsentHistory`**: append-only, registra ogni cambio di consenso con `userId`, `documentId`, `documentVersion`, `action (accept|revoke)`, `timestamp`, `ipAddress`.
+11. ~~**Tabella `ConsentHistory`**~~ ✅ **FATTO**: coperta dalla stessa tabella `AuditLog` invece di una tabella dedicata (`POLICY_ACCEPTED`/`TERMS_ACCEPTED` con `metadata.documentId`/`version`) — vedi gap #12. Nessun campo `ipAddress` per scelta di data-minimization (vedi § 8).
 
 12. **Abilitare 2FA**: configurare plugin `twoFactor` in `lib/auth.ts`; rendere opzionale ma consigliato via UI.
 
@@ -301,18 +307,18 @@
 ```
 LIBRERIE DA AGGIUNGERE:
 - node-cron / Vercel Cron Functions      → per eseguire purgeStaleActivityData()
-- pino / pino-pretty                     → structured logging
+- ~~pino / pino-pretty~~                  → NON necessario: audit trail risolto con la tabella `AuditLog` (append-only, Postgres) invece di structured logging esterno — più durevole/interrogabile di log stdout, nessuna nuova dipendenza
 - ~~@upstash/ratelimit + @upstash/redis~~  → NON necessario: rate limiting risolto con il limiter nativo di better-auth (`/api/auth`) + un limiter in-memory custom (`/api/rpc`, `lib/rate-limit.ts`), evitando un sub-processor USA aggiuntivo
-- node:crypto (built-in)                 → AES-256-GCM per token encryption
+- node:crypto (built-in)                 → AES-256-GCM per token encryption; SHA-256 per la pseudonimizzazione di AuditLog
 
 FEATURES DA IMPLEMENTARE:
 - DELETE /api/user/me                    → Right to Erasure
 - GET /api/gdpr/export                   → Right of Access + Portability
 - GET /api/cron/purge-raw-data           → eseguire purge 7gg rawJson
 - /settings/privacy                      → Privacy Dashboard utente
-- ConsentHistory table                   → audit trail consensi
+- ~~ConsentHistory table~~ ✅ FATTO       → coperta da `AuditLog` (vedi gap #10/#12)
 - Cookie Consent banner                  → CMP per GTM
-- Separato consenso biometrico           → prima sync Strava
+- ~~Separato consenso biometrico~~ ✅ FATTO → prima sync Strava (health-data-consent-gate)
 
 INFRASTRUTTURA:
 - ~~Self-host font Geist~~ ✅ FATTO         → Google Fonts CDN eliminato (`lib/fonts/fonts.ts`)
@@ -338,7 +344,7 @@ CONSENSO
 [~] Privacy Dashboard con toggle per tipo trattamento — /settings/privacy esiste con il toggle per i dati sanitari; manca ancora il toggle analytics/GTM
 [x] Flusso di revoca del consenso implementato — "elimina account" (compliance.deleteAccount) per la revoca totale; compliance.setHealthDataConsent per la revoca parziale dei dati sanitari senza cancellare l'account
 [ ] CMP per analytics/GTM con scelta utente
-[ ] ConsentHistory table per audit trail
+[x] ConsentHistory per audit trail — coperta dalla tabella AuditLog (POLICY_ACCEPTED/TERMS_ACCEPTED/HEALTH_DATA_CONSENT_*), append-only, scritta in transazione con la mutazione del consenso
 
 DIRITTI UTENTE
 [x] Right to Erasure con conferma — procedura oRPC compliance.deleteAccount, UI in tab utente (non un endpoint REST separato)
@@ -364,9 +370,9 @@ TERZI & TRASFERIMENTI
 [ ] Sub-processor register creato e mantenuto
 
 LOGGING
-[ ] Structured logging per accessi a dati personali
-[ ] Audit log per: login, accesso attività, export dati, delete account
-[ ] Log aggregati e protetti (non accessibili agli utenti)
+[x] Audit trail per accessi/modifiche a dati sensibili — tabella AuditLog append-only (no IP/user-agent, retention 24 mesi con purge automatico); NON structured logging esterno (Pino), scelta deliberata: DB durevole/interrogabile invece di log stdout
+[x] Audit log per: login, logout, registrazione (databaseHooks in lib/auth.ts), export dati, delete account, consensi — esclude deliberatamente l'accesso a singole attività (volume alto, non tracciato)
+[x] Log protetti — tabella DB non esposta da nessuna procedura oRPC lato utente, nessun endpoint di lettura pubblico
 
 DOCUMENTAZIONE
 [ ] Records of Processing (Art. 30) completato

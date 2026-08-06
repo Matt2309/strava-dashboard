@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { recordAuditEvent } from "@/server/repositories/audit-log.repository";
 
 /**
  * Collects a full snapshot of a user's personal data for a GDPR export
@@ -89,13 +90,31 @@ export async function getHealthDataConsent(
  * Records the user's explicit decision on health data consent. Called only
  * server-side from the compliance router — never trust a client-supplied
  * value beyond the boolean choice itself.
+ *
+ * The update and its audit event are written in the same transaction: a
+ * consent decision recorded without proof of when/what was decided is worse
+ * than no consent decision at all (GDPR audit gap #12).
  */
 export async function setHealthDataConsent(userId: string, granted: boolean) {
-	return prisma.user.update({
-		where: { id: userId },
-		data: {
-			healthDataConsent: granted,
-			healthDataConsentTimestamp: new Date(),
-		},
+	return prisma.$transaction(async (tx) => {
+		const user = await tx.user.update({
+			where: { id: userId },
+			data: {
+				healthDataConsent: granted,
+				healthDataConsentTimestamp: new Date(),
+			},
+		});
+
+		await recordAuditEvent(
+			{
+				subjectId: userId,
+				action: granted
+					? "HEALTH_DATA_CONSENT_GRANTED"
+					: "HEALTH_DATA_CONSENT_REVOKED",
+			},
+			tx,
+		);
+
+		return user;
 	});
 }

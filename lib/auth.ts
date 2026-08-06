@@ -3,6 +3,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { genericOAuth } from "better-auth/plugins";
 import { prisma } from "@/lib/prisma";
 import { authRateLimitStorage } from "@/lib/rate-limit";
+import { recordAuditEventSafe } from "@/server/services/audit.service";
 
 export const auth = betterAuth({
 	secret: process.env.BETTER_AUTH_SECRET,
@@ -35,6 +36,44 @@ export const auth = betterAuth({
 			// OVERWRITE it with the real client IP (not append), otherwise a
 			// client can forge it and dodge the rate limit below.
 			ipAddressHeaders: ["cf-connecting-ip", "x-forwarded-for"],
+		},
+	},
+	// GDPR audit gap #10 (docs/gdpr-compliance-audit.md § 3): audit trail for
+	// authentication events. Every hook uses recordAuditEventSafe — an audit
+	// log write must never block a login, a signup, or a logout.
+	databaseHooks: {
+		user: {
+			create: {
+				after: async (user) => {
+					await recordAuditEventSafe({
+						subjectId: user.id,
+						action: "USER_REGISTERED",
+					});
+				},
+			},
+		},
+		session: {
+			create: {
+				after: async (session) => {
+					await recordAuditEventSafe({
+						subjectId: session.userId,
+						action: "LOGIN",
+					});
+				},
+			},
+			// Fires on every session deletion, including /sign-out, with the full
+			// row (still carrying userId) available BEFORE it's removed — unlike
+			// the /sign-out endpoint itself, which only has the raw cookie token
+			// and doesn't resolve a session middleware, so hooking the endpoint
+			// directly wouldn't reliably see who was logging out.
+			delete: {
+				before: async (session) => {
+					await recordAuditEventSafe({
+						subjectId: session.userId,
+						action: "LOGOUT",
+					});
+				},
+			},
 		},
 	},
 	// GDPR audit gap #6 (docs/gdpr-compliance-audit.md § 6.1): brute-force

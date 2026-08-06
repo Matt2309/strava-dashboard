@@ -94,6 +94,19 @@ enum DeviceType {
   HR_MONITOR
 }
 
+enum AuditAction {
+  POLICY_ACCEPTED
+  TERMS_ACCEPTED
+  HEALTH_DATA_CONSENT_GRANTED
+  HEALTH_DATA_CONSENT_REVOKED
+  HEALTH_DATA_ERASED
+  DATA_EXPORTED
+  ACCOUNT_DELETED
+  USER_REGISTERED
+  LOGIN
+  LOGOUT
+}
+
 model GearFunctional {
   id       String         @id @default(cuid())
   stravaId String?        @unique
@@ -212,4 +225,29 @@ model TermsConditions {
   publishedAt DateTime @default(now())
 
   User User[]
+}
+
+// GDPR audit gap #10 (docs/gdpr-compliance-audit.md § 3): append-only audit
+// trail for consent changes and data-subject-rights operations.
+model AuditLog {
+  id String @id @default(cuid())
+
+  // Subject of the event. Deliberately NOT a foreign key to User: audit rows
+  // are append-only facts that must outlive the account (Art. 5(2)
+  // accountability), and the absence of a relation guarantees a deleted user
+  // can never resurface via any include/select anywhere in the codebase.
+  subjectId       String
+  // True once subjectId has been replaced by its SHA-256 hash on account deletion.
+  isPseudonymized Boolean @default(false)
+
+  action AuditAction
+  // Event-specific detail (accepted document version, erased row count).
+  // MUST NEVER contain personal data: only document ids, versions, counters.
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([subjectId, createdAt])
+  @@index([createdAt])
+  @@map("audit_logs")
 }

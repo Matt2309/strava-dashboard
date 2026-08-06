@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { recordAuditEvent } from "@/server/repositories/audit-log.repository";
 import { getLatestPolicy } from "@/server/repositories/policy.repository";
 import { getLatestTerms } from "@/server/repositories/terms.repository";
 
@@ -48,4 +49,65 @@ export async function getUserLegalConsentStatus(
 			firstTime: user.termsConsentTimestamp === null,
 		},
 	};
+}
+
+export type LegalConsentDocuments = {
+	policy?: { id: string; version: string };
+	terms?: { id: string; version: string };
+};
+
+/**
+ * Records acceptance of the privacy policy and/or terms & conditions
+ * together with the corresponding audit event, in a single transaction —
+ * the consent write and its proof must succeed or fail together (GDPR audit
+ * gap #12: overwriting the timestamp with no audit trail meant a prior
+ * acceptance, e.g. of v1, was lost the moment v2 was accepted).
+ */
+export async function recordLegalConsent(
+	userId: string,
+	documents: LegalConsentDocuments,
+): Promise<void> {
+	await prisma.$transaction(async (tx) => {
+		if (documents.policy) {
+			await tx.user.update({
+				where: { id: userId },
+				data: {
+					privacyPolicyId: documents.policy.id,
+					privacyConsentTimestamp: new Date(),
+				},
+			});
+			await recordAuditEvent(
+				{
+					subjectId: userId,
+					action: "POLICY_ACCEPTED",
+					metadata: {
+						documentId: documents.policy.id,
+						version: documents.policy.version,
+					},
+				},
+				tx,
+			);
+		}
+
+		if (documents.terms) {
+			await tx.user.update({
+				where: { id: userId },
+				data: {
+					termsConditionsId: documents.terms.id,
+					termsConsentTimestamp: new Date(),
+				},
+			});
+			await recordAuditEvent(
+				{
+					subjectId: userId,
+					action: "TERMS_ACCEPTED",
+					metadata: {
+						documentId: documents.terms.id,
+						version: documents.terms.version,
+					},
+				},
+				tx,
+			);
+		}
+	});
 }

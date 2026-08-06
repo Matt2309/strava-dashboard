@@ -8,17 +8,16 @@ import { getUserLegalConsentStatus } from "@/server/repositories/legal-consent.r
 import {
 	checkUserPolicyCompliance,
 	getLatestPolicy,
-	updatePolicyAcceptance,
 } from "@/server/repositories/policy.repository";
 import {
 	checkUserTermsCompliance,
 	getLatestTerms,
-	updateTermsAcceptance,
 } from "@/server/repositories/terms.repository";
 import {
 	deleteUserAccount,
 	exportUserData,
 	getHealthDataConsentStatus,
+	recordLegalConsentDecision,
 	setHealthDataConsentDecision,
 } from "@/server/services/compliance.service";
 
@@ -90,19 +89,7 @@ export const acceptLegalDocuments = os
 	)
 	.handler(async ({ input }) => {
 		const userId = await getUserIdFromSession();
-
-		if (input.policy) {
-			const activePolicy = await getLatestPolicy();
-			if (!activePolicy) throw new Error("Nessuna policy attiva trovata");
-			await updatePolicyAcceptance(userId, activePolicy.id);
-		}
-
-		if (input.terms) {
-			const activeTerms = await getLatestTerms();
-			if (!activeTerms) throw new Error("Nessun termini attivi trovati");
-			await updateTermsAcceptance(userId, activeTerms.id);
-		}
-
+		await recordLegalConsentDecision(userId, input);
 		revalidatePath("/", "layout");
 	})
 	.use(errorHandlerMiddleware)

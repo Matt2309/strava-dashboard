@@ -13,21 +13,6 @@ export async function getLatestPolicy() {
 }
 
 /**
- * Update the user's acceptance of the privacy policy.
- * @param userId - The ID of the user.
- * @param policyId - The ID of the accepted policy.
- */
-export async function updatePolicyAcceptance(userId: string, policyId: string) {
-    return prisma.user.update({
-        where: { id: userId },
-        data: {
-            privacyPolicyId: policyId,
-            privacyConsentTimestamp: new Date()
-        }
-    })
-}
-
-/**
  * Check if the user has accepted the latest active privacy policy.
  * @param userId - The ID of the user.
  * @returns True if compliant, false otherwise.
