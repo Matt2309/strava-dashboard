@@ -36,7 +36,11 @@ export function RegisterForm() {
 		});
 
 		if (signUpError) {
-			setError(signUpError.message ?? "Registration failed. Please try again.");
+			setError(
+				signUpError.status === 429
+					? "Too many attempts. Please wait a bit before trying again."
+					: (signUpError.message ?? "Registration failed. Please try again."),
+			);
 			setLoading(false);
 		} else {
 			// Record the consent the user just gave in the checkbox below. autoSignIn

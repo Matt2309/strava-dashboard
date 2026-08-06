@@ -14,7 +14,7 @@
 |-------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------|
 | ✅ CONFORME | Consent flow registrazione, versioning policy, framework env vars, ORM SQL-safe, Strava token refresh, soft-purge `rawJson` (logica)                                                             | ~8 |
 | ⚠️ PARZIALE | GTM consent mode, pseudonimizzazione ID interni, password hashing (delegato a better-auth), Privacy Policy visibile, cascaded deletes                                                            | ~12 |
-| ❌ NON CONFORME | Purge mai eseg0uito, nessun Right to Erasure UI, nessun data export, nessun rate limiting, token OAuth in chiaro, nessun audit log, nessun 2FA, nessun DPA documentato, nessuna procedura breach | ~22 |
+| ❌ NON CONFORME | Purge mai eseg0uito, nessun Right to Erasure UI, nessun data export, token OAuth in chiaro, nessun audit log, nessun 2FA, nessun DPA documentato, nessuna procedura breach | ~21 |
 
 **Top 3 aree forti:**
 1. Consent tracking con timestamp + versioning policy/terms
@@ -160,7 +160,7 @@
 | SQL injection | ✅ CONFORME | Prisma ORM usa query parametrizzate |
 | XSS | ✅ CONFORME | React escapa per default; `react-markdown` è safe. `dangerouslySetInnerHTML` usato solo per GTM script (necessario) |
 | CSRF | ⚠️ PARZIALE | `better-auth` gestisce sessioni; no token CSRF esplicito visibile |
-| Rate limiting | ❌ NON CONFORME | Nessun rate limiting su `/api/auth`, `/api/rpc`, `/api/strava/webhook` |
+| Rate limiting | ✅ CONFORME | **Aggiornamento 2026-08-06**: `/api/auth` protetto dal rate limiter nativo di `better-auth`, ora esplicitamente `enabled: true` (non più dipendente da `NODE_ENV`) in `lib/auth.ts`, con regole dedicate su `/sign-in/email`, `/sign-up/email`, `/sign-in/social`, `/sign-in/oauth2` (5-10 req per finestra) e fallback 100 req/60s per il resto. `/api/rpc` protetto da un limiter dedicato in-memory (`lib/rate-limit.ts`, 500 req/min per sessione o IP) applicato in `app/api/rpc/[[...rest]]/route.ts`, perché fuori dal perimetro di better-auth ma punto di accesso a tutti i dati personali (export, delete account, attività). Storage volutamente in memoria (nessun IP persistito su DB) e nessuna nuova dipendenza esterna (scartato `@upstash/ratelimit` per non introdurre un ulteriore sub-processor USA da documentare). Entrambi gli store sono bounded: quello di `/api/rpc` (`lib/rate-limit.ts`) ha un tetto di 10.000 bucket con sweep delle entry scadute; per `/api/auth` è stato passato a better-auth un `rateLimit.customStorage` (stesso file, `authRateLimitStorage`) che sostituisce lo store `memory` nativo — quest'ultimo di default è una `Map` **senza alcun tetto**, che evince un'entry solo se la stessa chiave viene richiamata dopo la scadenza: un flood di chiavi mai riusate (es. IP falsificati) altrimenti crescerebbe indefinitamente in RAM. `/api/strava/webhook` resta non protetto — Strava non firma le richieste in modo verificabile lato codice, da valutare come follow-up separato. **Prerequisito infrastrutturale non verificabile da codice**: la risoluzione IP (`advanced.ipAddress.ipAddressHeaders: ["cf-connecting-ip", "x-forwarded-for"]`) presume che il reverse proxy *sovrascriva* `X-Forwarded-For` con l'IP reale del client e che l'origin accetti traffico solo da Cloudflare — altrimenti l'header è falsificabile e il limite aggirabile. Da verificare in staging/produzione controllando che il log `"Rate limiting skipped: could not determine client IP address"` non compaia. |
 | WAF/DDoS protection | ⚠️ SCONOSCIUTO | Dipende dall'infrastruttura |
 | Backup | ⚠️ SCONOSCIUTO | Non configurato nel codice |
 | Secret management | ✅ CONFORME | Env variables; Docker compose commenta AWS Secrets Manager/HashiCorp Vault |
@@ -233,7 +233,7 @@
 | 3 | ~~**Nessun Data Export** (Art. 15 + Art. 20)~~ | ✅ RISOLTO | Implementato "Scarica i miei dati" nella tab utente. Procedura oRPC `compliance.exportUserData` (stesso flusso oRPC + TanStack Query, nessun endpoint REST dedicato) aggrega `User`, consensi, account collegati (senza token), `Activity` (incluso `rawJson`), `GearFunctional`, `GearDevice`, `UserStatistics` in un JSON scaricato lato browser |
 | 4 | ~~**Token OAuth Strava in plaintext nel DB**~~ | ✅ RISOLTO | Cifrati AES-256-GCM (`ENCRYPTION_KEY`) via Prisma `$extends` (`lib/prisma-extensions/account-token-encryption.ts`), trasparente per tutti i call site incluso better-auth. Righe legacy in plaintext restano leggibili (passthrough) — nessun downtime; backfill idempotente in `scripts/encrypt-account-tokens.ts`. Rotazione/versioning della chiave non ancora implementati (follow-up) |
 | 5 | ~~**Google Fonts caricati da CDN Google**~~ | ✅ RISOLTO | `@import` di Inter da `fonts.googleapis.com` rimosso da `app/globals.css`; Inter e Geist Mono ora self-hosted via `next/font/local` (`lib/fonts/fonts.ts`) |
-| 6 | **Nessun Rate Limiting** | 🟠 ALTO | Aggiungere rate limiting su `/api/auth` (login, register, reset) con `@upstash/ratelimit` o middleware Next.js |
+| 6 | ~~**Nessun Rate Limiting**~~ | ✅ RISOLTO | `/api/auth`: rate limiter nativo `better-auth` configurato esplicitamente in `lib/auth.ts` (regole dedicate su sign-in/sign-up/oauth2). `/api/rpc`: limiter dedicato in-memory (`lib/rate-limit.ts`) applicato nel route handler. Nessuna nuova dipendenza esterna |
 | 7 | **Consenso non granulare** — `averageHeartrate` è dato sanitario (Art. 9) | 🟠 ALTO | Aggiungere consenso esplicito separato per "dati biometrici/sanitari" prima di sincronizzare attività con HR |
 | 8 | **GTM si carica su tutte le pagine autenticate** senza consenso utente | 🟠 ALTO | Implementare CMP (Consent Management Platform) lato utente; non caricare GTM finché l'utente non consente analytics |
 | 9 | **Nessuna revoca del consenso** | 🟠 ALTO | Pagina "Privacy Dashboard" con toggle per revocare consenso; se revocato, bloccare elaborazione e avviare processo di cancellazione |
@@ -262,7 +262,7 @@
 
 5. ~~**Cifrare token OAuth**~~ ✅ **FATTO**: `lib/encryption.ts` (AES-256-GCM) + Prisma `$extends` (`lib/prisma-extensions/account-token-encryption.ts`) cifra `accessToken`/`refreshToken`/`idToken` su write e decifra su read, trasparente per il client condiviso con better-auth. Backfill idempotente: `scripts/encrypt-account-tokens.ts`.
 
-6. **Rate limiting**: aggiungere `middleware.ts` in root Next.js con rate limiting su `/api/auth/*` (max 10 req/min per IP) e `/api/rpc/*` (max 100 req/min per user).
+6. ~~**Rate limiting**~~ ✅ **FATTO**: `/api/auth/*` protetto dal rate limiter nativo di `better-auth` (`lib/auth.ts`, regole dedicate per sign-in/sign-up/oauth2); `/api/rpc/*` protetto da un limiter dedicato in-memory (`lib/rate-limit.ts`, 500 req/min per sessione/IP) nel route handler — non un `middleware.ts` in root, per non intercettare anche le chiamate `.callable()` server-side che non hanno una `Request` HTTP.
 
 7. **CMP utente per GTM**: aggiungere banner cookie consent che chiami `gtag('consent', 'update', {...})` in base alla scelta dell'utente; salvare preferenze in DB; non caricare script tracking senza consenso.
 
@@ -302,7 +302,7 @@
 LIBRERIE DA AGGIUNGERE:
 - node-cron / Vercel Cron Functions      → per eseguire purgeStaleActivityData()
 - pino / pino-pretty                     → structured logging
-- @upstash/ratelimit + @upstash/redis    → rate limiting stateless
+- ~~@upstash/ratelimit + @upstash/redis~~  → NON necessario: rate limiting risolto con il limiter nativo di better-auth (`/api/auth`) + un limiter in-memory custom (`/api/rpc`, `lib/rate-limit.ts`), evitando un sub-processor USA aggiuntivo
 - node:crypto (built-in)                 → AES-256-GCM per token encryption
 
 FEATURES DA IMPLEMENTARE:
@@ -354,7 +354,7 @@ RETENTION
 SICUREZZA
 [x] Token OAuth Strava cifrati (AES-256-GCM) — Prisma `$extends`, backfill in `scripts/encrypt-account-tokens.ts`
 [x] Google Fonts self-hosted (rimuovere CDN)
-[ ] Rate limiting su /api/auth/* e /api/rpc/*
+[x] Rate limiting su /api/auth/* (better-auth) e /api/rpc/* (lib/rate-limit.ts) — /api/strava/webhook resta escluso, da valutare come follow-up
 [ ] 2FA abilitato (opzionale per utenti)
 [ ] HTTP security headers (HSTS, CSP, X-Frame-Options)
 

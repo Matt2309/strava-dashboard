@@ -28,7 +28,11 @@ export function LoginForm() {
 		});
 
 		if (signInError) {
-			setError(signInError.message ?? "Sign in failed. Please try again.");
+			setError(
+				signInError.status === 429
+					? "Too many attempts. Please wait a bit before trying again."
+					: (signInError.message ?? "Sign in failed. Please try again."),
+			);
 			setLoading(false);
 		} else {
 			router.push(ROUTES.home.path);

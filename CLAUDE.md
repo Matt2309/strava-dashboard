@@ -70,6 +70,8 @@ Route access levels (`RouteAccess.PUBLIC/PROTECTED/PRIVATE`) are defined in `lib
 
 oRPC procedures can be called directly from server components as plain async functions (bypassing HTTP), e.g. `await isStravaConnected({ userId })` in the layout.
 
+**Rate limiting**: `/api/auth/*` is covered by better-auth's built-in rate limiter (configured in `lib/auth.ts` — `rateLimit` + `advanced.ipAddress`), using a bounded in-memory store (`authRateLimitStorage` in `lib/rate-limit.ts`) passed as `rateLimit.customStorage` instead of the default `"memory"` storage — the default has no cap and never evicts a key unless it's read again after expiry. `/api/rpc` sits outside that perimeter, so it has its own bounded limiter (`consumeRateLimit` in `lib/rate-limit.ts`) applied directly in `app/api/rpc/[[...rest]]/route.ts`, not as an oRPC middleware — a middleware would also fire on the server-side `.callable()` invocations above, which have no real client IP/session to key on. `/api/strava/webhook` and `/api/cron/purge-raw-data` are not rate-limited.
+
 ### Auth
 
 `lib/auth.ts` — server-side better-auth instance. `lib/auth-client.ts` — client-side `createAuthClient` (use the exported `signIn`, `signUp`, `signOut`, `useSession` from there in client components).
