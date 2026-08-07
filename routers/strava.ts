@@ -1,25 +1,34 @@
 import { os } from "@orpc/server";
+import { headers } from "next/headers";
 import { z } from "zod";
-import { env } from "@/lib/env";
-import * as strava from "@/services";
+import { auth } from "@/lib/auth";
+import { errorHandlerMiddleware } from "@/routers/middlewares/error-handler";
+import { findAllGearByUserId } from "@/server/repositories/gear.repository";
+import {
+	getActivitiesForUser,
+	getActivityDetail,
+	getActivityToonExport,
+	isStravaConnected as isStravaConnectedServ,
+	syncUserEquipment as syncUserEquipmentServ,
+} from "@/server/services/strava.service";
 
-export const getAuthUrl = os
-	.handler(() => {
-		const params = new URLSearchParams({
-			client_id: env.STRAVA_CLIENT_ID,
-			redirect_uri: env.STRAVA_REDIRECT_URI,
-			response_type: "code",
-			scope: "read,activity:read_all",
-			approval_prompt: "auto",
-		});
-		return `https://www.strava.com/oauth/authorize?${params.toString()}`;
-	})
-	.callable();
+/**
+ * Helper to extract and validate the current user's ID from the session.
+ */
+async function getUserIdFromSession(): Promise<string> {
+	const session = await auth.api.getSession({ headers: await headers() });
+	if (!session?.user?.id) {
+		throw new Error("Unauthorized: No active session");
+	}
+	return session.user.id;
+}
 
 export const getActivities = os
 	.handler(async () => {
-		return await strava.getActivities();
+		const userId = await getUserIdFromSession();
+		return await getActivitiesForUser(userId);
 	})
+	.use(errorHandlerMiddleware)
 	.callable();
 
 export const getActivity = os
@@ -29,8 +38,10 @@ export const getActivity = os
 		}),
 	)
 	.handler(async ({ input }) => {
-		return await strava.getActivity(input.id);
+		const userId = await getUserIdFromSession();
+		return await getActivityDetail(userId, input.id);
 	})
+	.use(errorHandlerMiddleware)
 	.callable();
 
 export const exportToToon = os
@@ -40,13 +51,41 @@ export const exportToToon = os
 		}),
 	)
 	.handler(async ({ input }) => {
-		return await strava.exportActivityToToon(input.id);
+		const userId = await getUserIdFromSession();
+		return await getActivityToonExport(userId, input.id);
 	})
+	.use(errorHandlerMiddleware)
+	.callable();
+
+export const isStravaConnected = os
+	.handler(async () => {
+        const userId = await getUserIdFromSession();
+		return await isStravaConnectedServ(userId);
+	})
+	.use(errorHandlerMiddleware)
+	.callable();
+
+export const syncUserEquipment = os
+	.handler(async () => {
+		const userId = await getUserIdFromSession();
+		return await syncUserEquipmentServ(userId);
+	})
+	.use(errorHandlerMiddleware)
+	.callable();
+
+export const getUserEquipment = os
+	.handler(async () => {
+		const userId = await getUserIdFromSession();
+		return await findAllGearByUserId(userId);
+	})
+	.use(errorHandlerMiddleware)
 	.callable();
 
 export const stravaRouter = os.router({
-	getAuthUrl,
 	getActivities,
 	getActivity,
 	exportToToon,
+	isStravaConnected,
+	syncUserEquipment,
+	getUserEquipment,
 });

@@ -1,0 +1,39 @@
+ARG NODE_VERSION=22
+
+FROM node:${NODE_VERSION}-alpine
+
+# Install development dependencies
+# - bash: useful for scripts, debugging, and interactive shells
+# - openssl3: required by Prisma for secure (SSL/TLS) database connections
+# - libc6-compat: needed by binary dependencies on musl/Alpine systems
+
+RUN apk add --no-cache bash openssl3 libc6-compat
+
+# Corepack setup for pnpm (fixed version for better stability)
+RUN npm install -g corepack@latest && \
+    corepack enable && \
+    corepack prepare pnpm@10.33.0 --activate
+
+WORKDIR /app
+
+# Configuration file copying
+COPY package.json pnpm-lock.yaml* .npmrc* ./
+
+# Tell pnpm to soft-fail on missing built dependencies.
+RUN pnpm config set only-built-dependencies-soft-fail true && \
+    pnpm install --frozen-lockfile
+
+# Prisma schema copying
+COPY prisma ./prisma
+
+RUN if [ -d prisma ]; then \
+      pnpm prisma generate; \
+    fi
+
+# Envs
+ENV NODE_ENV=development
+ENV NEXT_TELEMETRY_DISABLED=1
+
+EXPOSE 3000
+
+CMD ["pnpm", "dev"]

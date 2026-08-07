@@ -1,0 +1,69 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Dependencies
+node_modules
+pnpm-store
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
+pnpm-lock.yaml.backup
+
+# Next.js build outputs (will be regenerated)
+.next
+out
+dist
+build
+
+# Environment files (secrets should never be in build context)
+.env
+.env.local
+.env.*.local
+.env.production.local
+.env.development.local
+
+# IDE & Editor
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.circleci
+docker
+
+# Testing
+coverage
+.nyc_output
+cypress/screenshots
+cypress/videos
+
+# Documentation
+README.md
+docs
+ai
+
+# Misc (but keep build config files!)
+.babelrc
+.eslintrc*
+.prettierrc*
+.stylelintrc*
+jest.config.js
+vitest.config.ts
+Dockerfile
+docker-compose*.yml
+biome.json
+
+# Package manager files (keep .npmrc for potential build needs)
+.yarnrc
+.pnpmrc
+corepack
+

@@ -7,7 +7,7 @@ This is a Next.js application that allows users to connect their Strava account,
 First, run the development server:
 
 ```bash
-pnpm dev
+pnpm docker:dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.

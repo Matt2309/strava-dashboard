@@ -1,13 +1,8 @@
+'use client'
+
 import { useMutation, useQuery } from "@tanstack/react-query";
 import orpcClient from "@/lib/orpc/client";
 import type { Activity } from "@/lib/types";
-
-// --- getAuthUrl ---
-const authUrlProcedure = orpcClient.strava.getAuthUrl;
-
-export const useGetAuthUrl = () => {
-	return useQuery(authUrlProcedure.queryOptions());
-};
 
 // --- getActivities ---
 const activitiesProcedure = orpcClient.strava.getActivities;
@@ -28,6 +23,20 @@ export const useGetActivity = (id: string) => {
 			enabled: !!id,
 		}),
 	);
+};
+
+// --- syncGear ---
+const syncGearProcedure = orpcClient.strava.syncUserEquipment;
+export const useSyncUserEquipment = () => {
+	return useMutation({
+		mutationFn: () => syncGearProcedure.call({}),
+	});
+};
+
+// --- getUserEquipment ---
+const getUserEquipmentProcedure = orpcClient.strava.getUserEquipment;
+export const useGetUserEquipment = () => {
+	return useQuery(getUserEquipmentProcedure.queryOptions());
 };
 
 // --- exportToToon ---

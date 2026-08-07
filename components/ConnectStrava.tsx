@@ -1,15 +1,15 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useGetAuthUrl } from "@/hooks";
+import { authClient } from "@/lib/auth-client";
+import { ROUTES } from "@/lib/routes";
 
 export function ConnectStrava() {
-	const { isLoading: isLoadingUrl, data: authUrl } = useGetAuthUrl();
-
-	const handleConnect = () => {
-		if (!isLoadingUrl && authUrl) {
-			window.location.href = authUrl.toString();
-		}
+	const handleConnect = async () => {
+        await authClient.oauth2.link({
+            providerId: "strava",
+            callbackURL: ROUTES.garage.path,
+        });
 	};
 
 	return <Button onClick={handleConnect}>Connect to Strava</Button>;
