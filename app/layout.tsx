@@ -19,7 +19,8 @@ export default function RootLayout({
 	children: React.ReactNode;
 }>) {
 	return (
-		<html lang="en" suppressHydrationWarning>
+		<html lang="it" suppressHydrationWarning>
+            <GoogleTagManager gtmId="GTM-KJXQXRXK" />
 			<head>
 				<script
 					// biome-ignore lint/security/noDangerouslySetInnerHtml: Necesary for GTM
@@ -62,7 +63,6 @@ export default function RootLayout({
 					</ErrorBoundary>
 				</ThemeProvider>
 			</body>
-			<GoogleTagManager gtmId="GTM-KJXQXRXK" />
 		</html>
 	);
 }

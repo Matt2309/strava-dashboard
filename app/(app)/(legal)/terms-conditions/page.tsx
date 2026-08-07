@@ -1,7 +1,7 @@
 import ReactMarkdown from "react-markdown";
 import { retrieveLatestTerms } from "@/routers/compliance";
 import { BackButton } from "@/components/buttons/back-button";
-
+export const dynamic = 'force-dynamic';
 export default async function TermsConditions() {
 	const terms = await retrieveLatestTerms();
 

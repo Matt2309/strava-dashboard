@@ -1,7 +1,7 @@
 import ReactMarkdown from "react-markdown";
 import {retrieveLatestPolicy} from "@/routers/compliance";
 import {BackButton} from "@/components/buttons/back-button";
-
+export const dynamic = 'force-dynamic';
 export default async function PrivacyPolicy() {
     const policy = await retrieveLatestPolicy();
 
