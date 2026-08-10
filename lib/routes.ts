@@ -12,6 +12,8 @@ export type RouteName =
 	| "privacy-settings"
 	| "account-settings"
 	| "engine-room"
+	| "workout"
+	| "workout-summary"
 	| "not-found";
 
 export type ApiRouteName = "auth" | "rpc" | "strava-webhook" | "cron-purge";
@@ -89,9 +91,15 @@ export const ROUTES = {
 		path: "/engine-room",
 		access: RouteAccess.PRIVATE,
 	},
-	"not-found": {
-		path: "/not-found",
-		access: RouteAccess.PUBLIC,
+	workout: {
+		path: "/engine-room/workout/:dayId",
+		access: RouteAccess.PRIVATE,
+		build: (dayId: string) => `/engine-room/workout/${dayId}`,
+	},
+	"workout-summary": {
+		path: "/engine-room/session/:sessionId",
+		access: RouteAccess.PRIVATE,
+		build: (sessionId: string) => `/engine-room/session/${sessionId}`,
 	},
 	"privacy-policy": {
 		path: "/privacy-policy",

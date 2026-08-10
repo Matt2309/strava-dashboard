@@ -456,5 +456,8 @@ model SessionSet {
   rpe         Float?
   machineType String?
 
+  // Un solo record per set di un dato esercizio di sessione: rende
+  // idempotente completeSet (upsert) e la ripresa di una sessione aperta.
+  @@unique([sessionExerciseId, setNumber])
   @@map("session_sets")
 }

@@ -1,5 +1,7 @@
+import { RedirectButton } from "@/components/buttons/redirect-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { ROUTES } from "@/lib/routes";
 import { ExerciseCard } from "./ExerciseCard";
 
 export interface WorkoutDayExercise {
@@ -45,10 +47,19 @@ export function DaySection({ day }: DaySectionProps) {
 
 	return (
 		<Card className="w-full bg-transparent border-0">
-			<CardHeader>
-				<CardTitle className="text-2xl">{day.name}</CardTitle>
-				{day.notes && (
-					<p className="mt-2 text-sm text-muted-foreground">{day.notes}</p>
+			<CardHeader className="flex items-center justify-between">
+				<div>
+					<CardTitle className="text-2xl">{day.name}</CardTitle>
+					{day.notes && (
+						<p className="mt-2 text-sm text-muted-foreground">{day.notes}</p>
+					)}
+				</div>
+				{day.exercises.length > 0 && (
+					<RedirectButton
+						url={ROUTES.workout.build(day.id)}
+						text="▶ START WORKOUT"
+						variant="default"
+					/>
 				)}
 			</CardHeader>
 			<CardContent className="space-y-6 flex flex-row gap-5 overflow-scroll">

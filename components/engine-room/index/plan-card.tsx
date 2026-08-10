@@ -45,7 +45,7 @@ export default function PlanCard({
                 <RedirectButton
                     url={`/engine-room/${id}`}
                     className="w-full"
-                    text={"START WORKOUT"}
+                    text={"VIEW PLAN"}
                     variant={"secondary"}
                 ></RedirectButton>
             </CardContent>

@@ -70,3 +70,15 @@ export function formatDate(dateString: string): string {
 		day: "numeric",
 	});
 }
+
+/**
+ * Parses a free-form target-reps string (e.g. "8", "6-8", "MAX", "AMRAP")
+ * into a starting number to prefill the reps input during a workout.
+ * Ranges resolve to their lower bound; anything non-numeric ("MAX") falls
+ * back to 0 so the athlete enters what they actually did.
+ */
+export function parseTargetReps(targetReps: string | null | undefined): number {
+	if (!targetReps) return 0;
+	const match = targetReps.match(/\d+/);
+	return match ? Number.parseInt(match[0], 10) : 0;
+}

@@ -1,6 +1,6 @@
 import type {
 	CompleteSetInput,
-	CreatePlanInput,
+	CreatePlanOutput,
 	EndWorkoutInput,
 	SwapExerciseInput,
 } from "@/lib/schemas/engine-room.schema";
@@ -21,8 +21,29 @@ export class EngineRoomService {
 		return plan;
 	}
 
-	async createPlan(userId: string, data: CreatePlanInput) {
+	async createPlan(userId: string, data: CreatePlanOutput) {
 		return workoutPlanRepository.createPlan(userId, data);
+	}
+
+	async getWorkoutDay(userId: string, dayId: string) {
+		const day =
+			await workoutSessionRepository.getWorkoutDayWithExercises(dayId);
+		if (!day || day.plan.userId !== userId) {
+			throw new Error("Day not found or unauthorized");
+		}
+
+		const activeSession = await workoutSessionRepository.getSessionForDay(
+			userId,
+			dayId,
+		);
+
+		return {
+			id: day.id,
+			name: day.name,
+			notes: day.notes,
+			exercises: day.exercises,
+			activeSessionId: activeSession?.id ?? null,
+		};
 	}
 
 	async startWorkout(userId: string, dayId: string) {
@@ -32,6 +53,27 @@ export class EngineRoomService {
 
 		if (!day || day.plan.userId !== userId) {
 			throw new Error("Day not found or unauthorized");
+		}
+
+		// Resume an already-open session for this day instead of starting a
+		// second, parallel one.
+		const existingSession = await workoutSessionRepository.getSessionForDay(
+			userId,
+			dayId,
+		);
+
+		if (existingSession) {
+			const exercises = workoutSessionRepository.buildResumedExercisesView(
+				existingSession.exercises,
+				day.exercises,
+			);
+
+			return {
+				sessionId: existingSession.id,
+				dayId,
+				exercises,
+				resumed: true,
+			};
 		}
 
 		// Create workout session
@@ -47,6 +89,7 @@ export class EngineRoomService {
 			sessionId: session.id,
 			dayId,
 			exercises,
+			resumed: false,
 		};
 	}
 
@@ -84,6 +127,16 @@ export class EngineRoomService {
 		}
 
 		return workoutSessionRepository.endWorkout(data);
+	}
+
+	async getSessionSummary(userId: string, sessionId: string) {
+		const session =
+			await workoutSessionRepository.getSessionWithExercises(sessionId);
+		if (!session || session.userId !== userId) {
+			throw new Error("Session not found or unauthorized");
+		}
+
+		return session;
 	}
 
 	async getExercises(search?: string, muscleGroupId?: string) {

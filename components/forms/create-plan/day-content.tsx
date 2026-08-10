@@ -5,14 +5,14 @@ import ExerciseSelect from "@/components/forms/create-plan/exercise-select";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { CreatePlanInput } from "@/lib/schemas/engine-room.schema";
+import type { CreatePlanFormInput } from "@/lib/schemas/engine-room.schema";
 
 export default function DayContent({
 	control,
 	dayIndex,
 	dayName,
 }: {
-	control: Control<CreatePlanInput, any>;
+	control: Control<CreatePlanFormInput, any>;
 	dayIndex: number;
 	dayName: string;
 }) {
@@ -32,12 +32,8 @@ export default function DayContent({
 			restTime: 60,
 			coachNotes: "",
 			personalNotes: "",
-			reps: [
-				{
-					setNumber: 1,
-					targetReps: "",
-				},
-			],
+			sets: 3,
+			targetReps: "",
 		});
 	};
 
@@ -86,7 +82,7 @@ export default function DayContent({
 							{/* Sets */}
 							<div className="col-span-2">
 								<Controller
-									name={`days.${dayIndex}.exercises.${exerciseIndex}.reps.0.setNumber`}
+									name={`days.${dayIndex}.exercises.${exerciseIndex}.sets`}
 									control={control}
 									render={({ field, fieldState }) => (
 										<Field data-invalid={fieldState.invalid}>
@@ -94,6 +90,8 @@ export default function DayContent({
 											<Input
 												{...field}
 												value={field.value as string | number | undefined}
+												type="number"
+												min={1}
 												placeholder="4"
 												className="bg-input text-foreground border-border"
 												aria-invalid={fieldState.invalid}
@@ -109,7 +107,7 @@ export default function DayContent({
 							{/* Reps */}
 							<div className="col-span-2">
 								<Controller
-									name={`days.${dayIndex}.exercises.${exerciseIndex}.reps.0.targetReps`}
+									name={`days.${dayIndex}.exercises.${exerciseIndex}.targetReps`}
 									control={control}
 									render={({ field, fieldState }) => (
 										<Field data-invalid={fieldState.invalid}>

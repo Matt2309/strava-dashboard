@@ -1,8 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type {
-	CreatePlanInput,
-	GetPlanDetailsInput,
-} from "@/lib/schemas/engine-room.schema";
+import type { CreatePlanOutput } from "@/lib/schemas/engine-room.schema";
 
 export class WorkoutPlanRepository {
 	async getUserPlans(userId: string) {
@@ -35,6 +32,7 @@ export class WorkoutPlanRepository {
 										id: true,
 										nameEng: true,
 										nameIta: true,
+										photoUrl: true,
 									},
 								},
 								reps: {
@@ -48,7 +46,7 @@ export class WorkoutPlanRepository {
 		});
 	}
 
-	async createPlan(userId: string, data: CreatePlanInput) {
+	async createPlan(userId: string, data: CreatePlanOutput) {
 		const plan = await prisma.userWorkoutPlan.create({
 			data: {
 				userId,

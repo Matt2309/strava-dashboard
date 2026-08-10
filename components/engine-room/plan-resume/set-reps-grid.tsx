@@ -22,7 +22,12 @@ export function SetsRepsGrid({ reps, restTime }: SetsRepsListProps) {
     }
 
     const totalSets = reps.length;
-    const targetReps = reps[0].targetReps || "—";
+    // Sets can carry different target reps (e.g. a pyramid scheme); join the
+    // distinct values instead of only ever reading the first set.
+    const distinctReps = Array.from(
+        new Set(reps.map((rep) => rep.targetReps).filter(Boolean)),
+    );
+    const targetReps = distinctReps.length > 0 ? distinctReps.join(" / ") : "—";
     const weight = reps[0].weight || "—";
     const machineType = reps[0].machineType || "Free Weight";
 
@@ -66,6 +71,16 @@ export function SetsRepsGrid({ reps, restTime }: SetsRepsListProps) {
         </span>
                 <span className="text-lg font-semibold">{machineType}</span>
             </div>
+
+            {/* REST */}
+            {restTime && (
+                <div className="flex flex-col">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              Rest
+            </span>
+                    <span className="text-lg font-semibold">{restTime}</span>
+                </div>
+            )}
         </div>
     );
 }

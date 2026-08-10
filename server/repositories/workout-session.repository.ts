@@ -5,6 +5,95 @@ import type {
 	SwapExerciseInput,
 } from "@/lib/schemas/engine-room.schema";
 
+type PlanExerciseData = Array<{
+	id: string;
+	exerciseId: string;
+	alternativeExerciseId: string | null;
+	order: number;
+	restTime: number | null;
+	supersetId: string | null;
+	supersetOrder: number | null;
+	coachNotes: string | null;
+	personalNotes: string | null;
+	equipmentSetting1: string | null;
+	equipmentSetting2: string | null;
+	reps: Array<{
+		setNumber: number;
+		targetReps: string | null;
+		targetRpe: number | null;
+		weight: number | null;
+		machineType: string | null;
+	}>;
+	exercise: {
+		id: string;
+		nameEng: string;
+		nameIta: string | null;
+		photoUrl: string | null;
+	};
+	alternativeExercise: {
+		id: string;
+		nameEng: string;
+		nameIta: string | null;
+		photoUrl: string | null;
+	} | null;
+}>;
+
+type SessionExerciseRow = {
+	id: string;
+	userExerciseId: string | null;
+	exerciseId: string;
+	exercise: {
+		id: string;
+		nameEng: string;
+		nameIta: string | null;
+		photoUrl: string | null;
+	};
+	sets: Array<{
+		id: string;
+		setNumber: number;
+		reps: number;
+		weight: number | null;
+		rpe: number | null;
+		machineType: string | null;
+	}>;
+};
+
+/**
+ * Joins the exercises actually created for a session with the plan rows they
+ * came from, zipping by `userExerciseId` (NOT array index) — the DB order of
+ * a resumed session's exercises isn't guaranteed to line up positionally
+ * with `day.exercises`, so index-zipping would silently mismatch targets.
+ */
+function mapSessionExercises(
+	sessionExercises: SessionExerciseRow[],
+	planExercises: PlanExerciseData,
+) {
+	return sessionExercises
+		.map((sessEx) => {
+			const planEx = planExercises.find((p) => p.id === sessEx.userExerciseId);
+			if (!planEx) return null;
+			return {
+				sessionExerciseId: sessEx.id,
+				userExerciseId: sessEx.userExerciseId,
+				exerciseId: sessEx.exerciseId,
+				exercise: sessEx.exercise,
+				alternativeExerciseId: planEx.alternativeExerciseId,
+				alternativeExercise: planEx.alternativeExercise,
+				equipmentSetting1: planEx.equipmentSetting1,
+				equipmentSetting2: planEx.equipmentSetting2,
+				supersetId: planEx.supersetId,
+				supersetOrder: planEx.supersetOrder,
+				coachNotes: planEx.coachNotes,
+				personalNotes: planEx.personalNotes,
+				targetReps: planEx.reps,
+				completedSets: sessEx.sets,
+			};
+		})
+		.filter(
+			(exercise): exercise is NonNullable<typeof exercise> => exercise !== null,
+		);
+}
+
 export class WorkoutSessionRepository {
 	async createSession(userId: string, dayId: string) {
 		return prisma.workoutSession.create({
@@ -20,6 +109,13 @@ export class WorkoutSessionRepository {
 		return prisma.workoutSession.findUnique({
 			where: { id: sessionId },
 			include: {
+				day: {
+					select: {
+						id: true,
+						name: true,
+						plan: { select: { id: true, name: true } },
+					},
+				},
 				exercises: {
 					orderBy: { order: "asc" },
 					include: {
@@ -61,6 +157,7 @@ export class WorkoutSessionRepository {
 								id: true,
 								nameEng: true,
 								nameIta: true,
+								photoUrl: true,
 							},
 						},
 						reps: {
@@ -74,37 +171,7 @@ export class WorkoutSessionRepository {
 
 	async initializeSessionExercises(
 		sessionId: string,
-		planExercises: Array<{
-			id: string;
-			exerciseId: string;
-			alternativeExerciseId: string | null;
-			order: number;
-			restTime: number | null;
-			supersetId: string | null;
-			supersetOrder: number | null;
-			coachNotes: string | null;
-			personalNotes: string | null;
-			equipmentSetting1: string | null;
-			equipmentSetting2: string | null;
-			reps: Array<{
-				setNumber: number;
-				targetReps: string | null;
-				targetRpe: number | null;
-				weight: number | null;
-				machineType: string | null;
-			}>;
-			exercise: {
-				id: string;
-				nameEng: string;
-				nameIta: string | null;
-				photoUrl: string | null;
-			};
-			alternativeExercise: {
-				id: string;
-				nameEng: string;
-				nameIta: string | null;
-			} | null;
-		}>,
+		planExercises: PlanExerciseData,
 	) {
 		const sessionExercises = await Promise.all(
 			planExercises.map((planEx, idx) =>
@@ -129,31 +196,40 @@ export class WorkoutSessionRepository {
 			),
 		);
 
-		return sessionExercises.map((sessEx, idx) => {
-			const planEx = planExercises[idx];
-			return {
-				sessionExerciseId: sessEx.id,
-				userExerciseId: sessEx.userExerciseId,
-				exerciseId: sessEx.exerciseId,
-				exercise: sessEx.exercise,
-				alternativeExerciseId: planEx.alternativeExerciseId,
-				alternativeExercise: planEx.alternativeExercise,
-				equipmentSetting1: planEx.equipmentSetting1,
-				equipmentSetting2: planEx.equipmentSetting2,
-				supersetId: planEx.supersetId,
-				supersetOrder: planEx.supersetOrder,
-				coachNotes: planEx.coachNotes,
-				personalNotes: planEx.personalNotes,
-				targetReps: planEx.reps,
-			};
-		});
+		return mapSessionExercises(
+			sessionExercises.map((sessEx) => ({ ...sessEx, sets: [] })),
+			planExercises,
+		);
+	}
+
+	/**
+	 * Rebuilds the exercise view for a session that is already in progress
+	 * (resumed workout), including the sets already logged for each exercise.
+	 */
+	buildResumedExercisesView(
+		sessionExercises: SessionExerciseRow[],
+		planExercises: PlanExerciseData,
+	) {
+		return mapSessionExercises(sessionExercises, planExercises);
 	}
 
 	async completeSet(data: CompleteSetInput) {
-		return prisma.sessionSet.create({
-			data: {
+		return prisma.sessionSet.upsert({
+			where: {
+				sessionExerciseId_setNumber: {
+					sessionExerciseId: data.sessionExerciseId,
+					setNumber: data.setNumber,
+				},
+			},
+			create: {
 				sessionExerciseId: data.sessionExerciseId,
 				setNumber: data.setNumber,
+				reps: data.reps,
+				weight: data.weight || null,
+				rpe: data.rpe || null,
+				machineType: data.machineType || null,
+			},
+			update: {
 				reps: data.reps,
 				weight: data.weight || null,
 				rpe: data.rpe || null,
@@ -190,8 +266,19 @@ export class WorkoutSessionRepository {
 			},
 			include: {
 				exercises: {
+					orderBy: { order: "asc" },
 					include: {
-						sets: true,
+						exercise: {
+							select: {
+								id: true,
+								nameEng: true,
+								nameIta: true,
+								photoUrl: true,
+							},
+						},
+						sets: {
+							orderBy: { setNumber: "asc" },
+						},
 					},
 				},
 			},

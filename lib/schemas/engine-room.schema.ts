@@ -42,6 +42,76 @@ export const createPlanSchema = z.object({
 export type CreatePlanInput = z.input<typeof createPlanSchema>;
 export type CreatePlanOutput = z.infer<typeof createPlanSchema>;
 
+// ===== PLAN FORM SCHEMA (what the create-plan UI actually edits) =====
+// The UI edits a single "SETS" counter + one target-reps value per exercise,
+// not a raw array of per-set rows. This schema captures that shape; the
+// resulting form output is expanded into `createPlanSchema`'s `reps[]` array
+// (one ExerciseRep row per set) via `toCreatePlanInput` before it is sent to
+// the `createPlan` procedure.
+export const createPlanFormSchema = z.object({
+	name: z.string().min(1, "Plan name required"),
+	type: z.string().min(1, "Plan type required"),
+	durationWeeks: z.coerce.number().int().min(1, "Duration must be at least 1 week"),
+	expiryDate: z.date().nullable().optional(),
+	days: z.array(
+		z.object({
+			name: z.string().min(1, "Day name required"),
+			order: z.number().int().min(1),
+			notes: z.string().optional(),
+			exercises: z.array(
+				z.object({
+					exerciseId: z.string().min(1, "Exercise required"),
+					alternativeExerciseId: z.string().optional(),
+					order: z.number().int().min(1),
+					restTime: z.coerce.number().int().optional(),
+					supersetId: z.string().optional(),
+					supersetOrder: z.number().int().optional(),
+					coachNotes: z.string().optional(),
+					personalNotes: z.string().optional(),
+					equipmentSetting1: z.string().optional(),
+					equipmentSetting2: z.string().optional(),
+					sets: z.coerce.number().int().min(1, "At least 1 set required").max(20),
+					targetReps: z.string().min(1, "Reps required"),
+					targetRpe: z.number().optional(),
+					weight: z.number().optional(),
+					machineType: z.string().optional(),
+				}),
+			),
+		}),
+	),
+});
+
+export type CreatePlanFormInput = z.input<typeof createPlanFormSchema>;
+export type CreatePlanFormOutput = z.infer<typeof createPlanFormSchema>;
+
+/**
+ * Expands the form's single SETS counter into N `ExerciseRep` rows
+ * (setNumber 1..N), matching the shape `createPlanSchema` (and the DB)
+ * expect. This is where "3x6" actually becomes 3 rows instead of 1.
+ */
+export function toCreatePlanInput(form: CreatePlanFormOutput): CreatePlanOutput {
+	return {
+		...form,
+		days: form.days.map((day) => ({
+			...day,
+			exercises: day.exercises.map((exercise) => {
+				const { sets, targetReps, targetRpe, weight, machineType, ...rest } =
+					exercise;
+				return {
+					...rest,
+					reps: Array.from({ length: sets }, (_, i) => ({
+						setNumber: i + 1,
+						targetReps,
+						targetRpe,
+						weight,
+						machineType,
+					})),
+				};
+			}),
+		})),
+	};
+}
+
 export const getPlanDetailsSchema = z.object({
 	planId: z.string().min(1),
 });
@@ -114,6 +184,18 @@ export const startWorkoutSchema = z.object({
 });
 
 export type StartWorkoutInput = z.infer<typeof startWorkoutSchema>;
+
+export const getWorkoutDaySchema = z.object({
+	dayId: z.string().min(1),
+});
+
+export type GetWorkoutDayInput = z.infer<typeof getWorkoutDaySchema>;
+
+export const getSessionSchema = z.object({
+	sessionId: z.string().min(1),
+});
+
+export type GetSessionInput = z.infer<typeof getSessionSchema>;
 
 export const completeSetSchema = z.object({
 	sessionId: z.string().min(1),

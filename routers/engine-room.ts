@@ -7,6 +7,8 @@ import {
 	createPlanSchema,
 	endWorkoutSchema,
 	getExercisesSchema,
+	getSessionSchema,
+	getWorkoutDaySchema,
 	swapExerciseSchema,
 } from "@/lib/schemas/engine-room.schema";
 import { errorHandlerMiddleware } from "@/routers/middlewares/error-handler";
@@ -42,6 +44,15 @@ export const createPlan = os
 	.handler(async ({ input }) => {
 		const userId = await getUserIdFromSession();
 		return await engineRoomService.createPlan(userId, input);
+	})
+	.use(errorHandlerMiddleware)
+	.callable();
+
+export const getWorkoutDay = os
+	.input(getWorkoutDaySchema)
+	.handler(async ({ input }) => {
+		const userId = await getUserIdFromSession();
+		return await engineRoomService.getWorkoutDay(userId, input.dayId);
 	})
 	.use(errorHandlerMiddleware)
 	.callable();
@@ -105,14 +116,25 @@ export const getMuscleGroups = os
 	.use(errorHandlerMiddleware)
 	.callable();
 
+export const getSession = os
+	.input(getSessionSchema)
+	.handler(async ({ input }) => {
+		const userId = await getUserIdFromSession();
+		return await engineRoomService.getSessionSummary(userId, input.sessionId);
+	})
+	.use(errorHandlerMiddleware)
+	.callable();
+
 export const engineRoomRouter = os.router({
 	getPlans,
 	getPlanDetails,
 	createPlan,
+	getWorkoutDay,
 	startWorkout,
 	completeSet,
 	swapExercise,
 	endWorkout,
 	getExercises,
 	getMuscleGroups,
+	getSession,
 });

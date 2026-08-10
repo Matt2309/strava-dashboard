@@ -30,6 +30,20 @@ export const useCreatePlan = () => {
 	});
 };
 
+// --- getWorkoutDay ---
+const getWorkoutDayProcedure = orpcClient.engineRoom.getWorkoutDay;
+export const useGetWorkoutDay = (
+	dayId: string,
+	options?: { enabled?: boolean },
+) => {
+	return useQuery(
+		getWorkoutDayProcedure.queryOptions({
+			input: { dayId },
+			enabled: !!dayId && options?.enabled !== false,
+		}),
+	);
+};
+
 // --- startWorkout ---
 const startWorkoutProcedure = orpcClient.engineRoom.startWorkout;
 export const useStartWorkout = () => {
@@ -87,4 +101,18 @@ export const useGetExercises = (
 const getMuscleGroupsProcedure = orpcClient.engineRoom.getMuscleGroups;
 export const useGetMuscleGroups = () => {
 	return useQuery(getMuscleGroupsProcedure.queryOptions());
+};
+
+// --- getSession ---
+const getSessionProcedure = orpcClient.engineRoom.getSession;
+export const useGetSession = (
+	sessionId: string,
+	options?: { enabled?: boolean },
+) => {
+	return useQuery(
+		getSessionProcedure.queryOptions({
+			input: { sessionId },
+			enabled: !!sessionId && options?.enabled !== false,
+		}),
+	);
 };
