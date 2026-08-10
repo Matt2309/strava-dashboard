@@ -21,18 +21,34 @@ export function LoginForm() {
 		setLoading(true);
 		setError(null);
 
-		const { error: signInError } = await authClient.signIn.email({
+		const { data, error: signInError } = await authClient.signIn.email({
 			email,
 			password,
 			callbackURL: ROUTES.home.path,
 		});
 
 		if (signInError) {
-			setError(signInError.message ?? "Sign in failed. Please try again.");
+			setError(
+				signInError.status === 429
+					? "Troppi tentativi. Riprova tra qualche minuto."
+					: (signInError.message ?? "Accesso non riuscito. Riprova."),
+			);
 			setLoading(false);
-		} else {
-			router.push(ROUTES.home.path);
+			return;
 		}
+
+		// better-auth replaces the sign-in response body with
+		// `{ twoFactorRedirect: true }` (still a 200, no error) when the account
+		// has 2FA enabled. The cast is needed because that shape lives on the
+		// twoFactor plugin's hook type, not on the inferred /sign-in/email
+		// return type. lib/auth-client.ts's onTwoFactorRedirect already
+		// hard-navigates to /two-factor — keep `loading` true so the button
+		// stays disabled through that navigation.
+		if ((data as { twoFactorRedirect?: boolean } | null)?.twoFactorRedirect) {
+			return;
+		}
+
+		router.push(ROUTES.home.path);
 	};
 
 	const handleGoogleLogin = async () => {
@@ -60,7 +76,7 @@ export function LoginForm() {
 					<Input
 						id="email"
 						type="email"
-						placeholder="you@example.com"
+						placeholder="tu@esempio.com"
 						value={email}
 						onChange={(e) => setEmail(e.target.value)}
 						required
@@ -68,7 +84,15 @@ export function LoginForm() {
 					/>
 				</div>
 				<div className="flex flex-col gap-2">
-					<Label htmlFor="password">Password</Label>
+					<div className="flex items-center justify-between">
+						<Label htmlFor="password">Password</Label>
+						<Link
+							href={ROUTES["forgot-password"].path}
+							className="text-xs text-muted-foreground underline underline-offset-4 hover:text-primary"
+						>
+							Password dimenticata?
+						</Link>
+					</div>
 					<Input
 						id="password"
 						type="password"
@@ -80,7 +104,7 @@ export function LoginForm() {
 					/>
 				</div>
 				<Button type="submit" className="w-full" disabled={loading}>
-					{loading ? "Signing in…" : "Sign in"}
+					{loading ? "Accesso in corso…" : "Accedi"}
 				</Button>
 			</form>
 
@@ -90,12 +114,33 @@ export function LoginForm() {
 				</div>
 				<div className="relative flex justify-center text-xs uppercase">
 					<span className="bg-background px-2 text-muted-foreground">
-						Or continue with
+						Oppure continua con
 					</span>
 				</div>
 			</div>
 
 			<div className="flex flex-col gap-2">
+				<p className="text-center text-[11px] text-muted-foreground mb-1">
+					Nuovo qui? Dopo aver continuato ti chiederemo di leggere e accettare
+					la nostra{" "}
+					<Link
+						href="/privacy-policy"
+						target="_blank"
+						className="underline underline-offset-2 hover:text-primary"
+					>
+						Privacy Policy
+					</Link>{" "}
+					e i{" "}
+					<Link
+						href="/terms-conditions"
+						target="_blank"
+						className="underline underline-offset-2 hover:text-primary"
+					>
+						Termini e Condizioni
+					</Link>
+					.
+				</p>
+
 				<Button
 					type="button"
 					variant="outline"
@@ -120,7 +165,7 @@ export function LoginForm() {
 							fill="#EA4335"
 						/>
 					</svg>
-					Continue with Google
+					Continua con Google
 				</Button>
 
 				<Button
@@ -137,17 +182,17 @@ export function LoginForm() {
 					>
 						<path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169" />
 					</svg>
-					Continue with Strava
+					Continua con Strava
 				</Button>
 			</div>
 
 			<p className="text-center text-sm text-muted-foreground">
-				{"Don't have an account? "}
+				{"Non hai un account? "}
 				<Link
 					href={ROUTES.register.path}
 					className="underline underline-offset-4 hover:text-primary"
 				>
-					Register
+					Registrati
 				</Link>
 			</p>
 		</div>

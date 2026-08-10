@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAcceptLegalDocuments } from "@/hooks/use-compliance";
 import { authClient } from "@/lib/auth-client";
 import { ROUTES } from "@/lib/routes";
 
@@ -14,11 +16,15 @@ export function RegisterForm() {
 	const [name, setName] = useState("");
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
+	const [policyAccepted, setPolicyAccepted] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
+	const { mutateAsync: acceptLegalDocuments } = useAcceptLegalDocuments();
 
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
+		if (!policyAccepted) return;
+
 		setLoading(true);
 		setError(null);
 
@@ -30,9 +36,22 @@ export function RegisterForm() {
 		});
 
 		if (signUpError) {
-			setError(signUpError.message ?? "Registration failed. Please try again.");
+			setError(
+				signUpError.status === 429
+					? "Troppi tentativi. Riprova tra qualche minuto."
+					: (signUpError.message ?? "Registrazione non riuscita. Riprova."),
+			);
 			setLoading(false);
 		} else {
+			// Record the consent the user just gave in the checkbox below. autoSignIn
+			// is on by default, so the session already exists at this point.
+			try {
+				await acceptLegalDocuments({ policy: true, terms: true });
+			} catch (consentError) {
+				// Don't block navigation: if this fails, the post-login consent wall
+				// will catch it and ask the user to accept again.
+				console.error(consentError);
+			}
 			router.push(ROUTES.home.path);
 		}
 	};
@@ -44,11 +63,11 @@ export function RegisterForm() {
 					<p className="text-sm text-destructive text-center">{error}</p>
 				)}
 				<div className="flex flex-col gap-2">
-					<Label htmlFor="name">Name</Label>
+					<Label htmlFor="name">Nome</Label>
 					<Input
 						id="name"
 						type="text"
-						placeholder="Your name"
+						placeholder="Il tuo nome"
 						value={name}
 						onChange={(e) => setName(e.target.value)}
 						required
@@ -60,7 +79,7 @@ export function RegisterForm() {
 					<Input
 						id="email"
 						type="email"
-						placeholder="you@example.com"
+						placeholder="tu@esempio.com"
 						value={email}
 						onChange={(e) => setEmail(e.target.value)}
 						required
@@ -80,18 +99,52 @@ export function RegisterForm() {
 						minLength={8}
 					/>
 				</div>
-				<Button type="submit" className="w-full" disabled={loading}>
-					{loading ? "Creating account…" : "Create account"}
+
+				<div className="flex items-center space-x-2 pt-2">
+					<Checkbox
+						id="terms"
+						checked={policyAccepted}
+						onCheckedChange={(checked) => setPolicyAccepted(checked)}
+					/>
+					<Label
+						htmlFor="terms"
+						className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+					>
+						Ho letto e accetto la{" "}
+						<Link
+							href="/privacy-policy"
+							target="_blank"
+							className="text-primary underline underline-offset-4 hover:text-primary/80"
+						>
+							Privacy Policy
+						</Link>{" "}
+						e i{" "}
+						<Link
+							href="/terms-conditions"
+							target="_blank"
+							className="text-primary underline underline-offset-4 hover:text-primary/80"
+						>
+							Termini e Condizioni
+						</Link>
+					</Label>
+				</div>
+
+				<Button
+					type="submit"
+					className="w-full mt-2"
+					disabled={loading || !policyAccepted}
+				>
+					{loading ? "Creazione account…" : "Crea account"}
 				</Button>
 			</form>
 
 			<p className="text-center text-sm text-muted-foreground">
-				Already have an account?{" "}
+				Hai già un account?{" "}
 				<Link
 					href={ROUTES.login.path}
 					className="underline underline-offset-4 hover:text-primary"
 				>
-					Sign in
+					Accedi
 				</Link>
 			</p>
 		</div>

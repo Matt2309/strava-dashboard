@@ -1,6 +1,12 @@
 "use client";
 
-import { Dumbbell, LucideWrench, Timer } from "lucide-react";
+import {
+	Dumbbell,
+	KeyRound,
+	LucideWrench,
+	ShieldCheck,
+	Timer,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import type * as React from "react";
 import { NavMain } from "@/components/sidebar/nav-main";
@@ -16,7 +22,6 @@ import {
 } from "@/components/ui/sidebar";
 import { ROUTES } from "@/lib/routes";
 
-// This is sample data.
 const data = {
 	projects: [
 		{
@@ -71,6 +76,29 @@ export function SidebarBody({
 				<NavMain items={data.projects} />
 			</SidebarContent>
 			<SidebarFooter>
+				<SidebarMenu>
+					<SidebarMenuItem>
+						<SidebarMenuButton
+							onClick={() => router.push(ROUTES["account-settings"].path)}
+							className="text-neutral-500"
+							tooltip="Sicurezza"
+						>
+							<KeyRound />
+							<span>Sicurezza</span>
+						</SidebarMenuButton>
+					</SidebarMenuItem>
+					<SidebarMenuItem>
+						<SidebarMenuButton
+							onClick={() => router.push(ROUTES["privacy-settings"].path)}
+							className="text-neutral-500"
+							tooltip="Impostazioni privacy"
+						>
+							<ShieldCheck />
+							<span>Impostazioni privacy</span>
+						</SidebarMenuButton>
+					</SidebarMenuItem>
+				</SidebarMenu>
+
 				<NavUser />
 			</SidebarFooter>
 		</Sidebar>

@@ -3,11 +3,18 @@ export type RouteName =
 	| "garage"
 	| "login"
 	| "register"
+	| "forgot-password"
+	| "reset-password"
+	| "two-factor"
 	| "activity-detail"
+	| "privacy-policy"
+	| "terms-conditions"
+	| "privacy-settings"
+	| "account-settings"
 	| "engine-room"
 	| "not-found";
 
-export type ApiRouteName = "auth" | "rpc" | "strava-webhook";
+export type ApiRouteName = "auth" | "rpc" | "strava-webhook" | "cron-purge";
 
 export enum RouteAccess {
 	PUBLIC,
@@ -44,6 +51,31 @@ export const ROUTES = {
 		path: "/register",
 		access: RouteAccess.PROTECTED,
 	},
+	"forgot-password": {
+		path: "/forgot-password",
+		access: RouteAccess.PROTECTED,
+	},
+	// PUBLIC, not PROTECTED — and the distinction is load-bearing. The token
+	// in the URL is the credential here, not the session: a user can click
+	// the emailed link while still logged in on that device (the common case
+	// — password forgotten on the phone, session still alive on the laptop).
+	// PROTECTED would bounce them straight back to "/" before they could
+	// complete the reset. `revokeSessionsOnPasswordReset` in lib/auth.ts kills
+	// the stale session as part of the reset itself.
+	"reset-password": {
+		path: "/reset-password",
+		access: RouteAccess.PUBLIC,
+	},
+	// Reached mid sign-in, after email/password credentials were accepted but
+	// before the second factor is provided. At that point better-auth has
+	// already deleted the session it briefly created and replaced the cookie
+	// with a short-lived `two_factor` cookie — so there is no session, and
+	// PROTECTED (which only redirects when a real session exists) lets the
+	// page through while still correctly bouncing an already-signed-in user.
+	"two-factor": {
+		path: "/two-factor",
+		access: RouteAccess.PROTECTED,
+	},
 	garage: {
 		path: "/garage",
 		access: RouteAccess.PRIVATE,
@@ -55,6 +87,26 @@ export const ROUTES = {
 	},
 	"engine-room": {
 		path: "/engine-room",
+		access: RouteAccess.PRIVATE,
+	},
+	"not-found": {
+		path: "/not-found",
+		access: RouteAccess.PUBLIC,
+	},
+	"privacy-policy": {
+		path: "/privacy-policy",
+		access: RouteAccess.PUBLIC,
+	},
+	"terms-conditions": {
+		path: "/terms-conditions",
+		access: RouteAccess.PUBLIC,
+	},
+	"privacy-settings": {
+		path: "/settings/privacy",
+		access: RouteAccess.PRIVATE,
+	},
+	"account-settings": {
+		path: "/settings/account",
 		access: RouteAccess.PRIVATE,
 	},
 	"not-found": {
@@ -74,6 +126,9 @@ export const API_ROUTES = {
 	},
 	"strava-webhook": {
 		path: "/api/strava/webhook",
+	},
+	"cron-purge": {
+		path: "/api/cron/purge-raw-data",
 	},
 } as const satisfies Record<ApiRouteName, ApiRoute>;
 

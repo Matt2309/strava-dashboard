@@ -25,8 +25,27 @@ model User {
   Activity       Activity[]
   UserStatistics UserStatistics[]
 
-  workoutPlans   UserWorkoutPlan[]
-  WorkoutSession WorkoutSession[]
+  workoutPlans            UserWorkoutPlan[]
+  WorkoutSession          WorkoutSession[]
+  // Compliance fields
+  privacyConsentTimestamp DateTime?
+  termsConsentTimestamp   DateTime?
+
+  // Art. 9 GDPR — separate consent for health/biometric data (HR, suffer score).
+  // null = never decided (shows the gate in Garage), true = granted, false = refused/revoked.
+  healthDataConsent          Boolean?
+  healthDataConsentTimestamp DateTime?
+
+  // Relations to track which legal document version the user has accepted
+  PrivacyPolicy     PrivacyPolicy?   @relation(fields: [privacyPolicyId], references: [id])
+  privacyPolicyId   String?
+  TermsConditions   TermsConditions? @relation(fields: [termsConditionsId], references: [id])
+  termsConditionsId String?
+
+  // GDPR audit gap #11 — better-auth `twoFactor` plugin flag. `input: false`
+  // in lib/auth.ts: only the plugin's own endpoints ever flip this.
+  twoFactorEnabled Boolean    @default(false)
+  TwoFactor        TwoFactor?
 }
 
 model Session {
@@ -67,6 +86,27 @@ model Verification {
   updatedAt  DateTime?
 }
 
+// better-auth `twoFactor` plugin table (GDPR audit gap #11).
+// `secret` and `backupCodes` are ALREADY encrypted at rest by better-auth
+// itself (symmetricEncrypt with BETTER_AUTH_SECRET; `storeBackupCodes:
+// "encrypted"` is the plugin default) — do NOT add these columns to
+// lib/prisma-extensions/account-token-encryption.ts. That extension only
+// rewrites `args.data`, never `args.where`, and
+// /two-factor/verify-backup-code updates with
+// `where: [{ backupCodes: <ciphertext just read> }]` — a second encryption
+// layer would make the where-clause compare a decrypted value against stored
+// ciphertext, so every backup-code redemption would fail with CONFLICT.
+// Consequence: rotating BETTER_AUTH_SECRET invalidates every 2FA enrolment.
+model TwoFactor {
+  id          String   @id
+  secret      String
+  backupCodes String
+  createdAt   DateTime @default(now())
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 // --- ENUMS ---
 enum FunctionalType {
   ROAD_SHOE // Road shoes
@@ -80,6 +120,25 @@ enum DeviceType {
   SMARTWATCH
   PHONE
   HR_MONITOR
+}
+
+enum AuditAction {
+  POLICY_ACCEPTED
+  TERMS_ACCEPTED
+  HEALTH_DATA_CONSENT_GRANTED
+  HEALTH_DATA_CONSENT_REVOKED
+  HEALTH_DATA_ERASED
+  DATA_EXPORTED
+  ACCOUNT_DELETED
+  USER_REGISTERED
+  LOGIN
+  LOGOUT
+  EMAIL_VERIFIED
+  PASSWORD_RESET_REQUESTED
+  PASSWORD_RESET_COMPLETED
+  TWO_FACTOR_ENABLED
+  TWO_FACTOR_DISABLED
+  TWO_FACTOR_BACKUP_CODES_REGENERATED
 }
 
 model GearFunctional {
@@ -180,6 +239,51 @@ model UserStatistics {
 
   @@unique([userId, sport_name, terrain_type])
   @@map("user_statistics")
+}
+
+model PrivacyPolicy {
+  id          String   @id @default(uuid())
+  version     String   @unique // Example: "1.0", "1.1", "2.0"
+  content     String   @db.Text // Text in Markdown format
+  isActive    Boolean  @default(false) // Only one version can be active at a time
+  publishedAt DateTime @default(now())
+
+  User User[]
+}
+
+model TermsConditions {
+  id          String   @id @default(uuid())
+  version     String   @unique
+  content     String   @db.Text // Text in Markdown format
+  isActive    Boolean  @default(false) // Only one version can be active at a time
+  publishedAt DateTime @default(now())
+
+  User User[]
+}
+
+// GDPR audit gap #10 (docs/gdpr-compliance-audit.md § 3): append-only audit
+// trail for consent changes and data-subject-rights operations.
+model AuditLog {
+  id String @id @default(cuid())
+
+  // Subject of the event. Deliberately NOT a foreign key to User: audit rows
+  // are append-only facts that must outlive the account (Art. 5(2)
+  // accountability), and the absence of a relation guarantees a deleted user
+  // can never resurface via any include/select anywhere in the codebase.
+  subjectId       String
+  // True once subjectId has been replaced by its SHA-256 hash on account deletion.
+  isPseudonymized Boolean @default(false)
+
+  action   AuditAction
+  // Event-specific detail (accepted document version, erased row count).
+  // MUST NEVER contain personal data: only document ids, versions, counters.
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([subjectId, createdAt])
+  @@index([createdAt])
+  @@map("audit_logs")
 }
 
 // ==========================================

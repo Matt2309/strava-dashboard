@@ -9,8 +9,8 @@ import {
 } from "@/components/ui/card";
 
 export const metadata: Metadata = {
-	title: "Register — Dromos",
-	description: "Create your Dromos account",
+	title: "Registrati — Dromos",
+	description: "Crea il tuo account Dromos",
 };
 
 export default function RegisterPage() {
@@ -18,8 +18,8 @@ export default function RegisterPage() {
 		<div className="flex min-h-screen items-center justify-center p-4">
 			<Card className="w-full max-w-sm">
 				<CardHeader className="space-y-1 text-center">
-					<CardTitle className="text-2xl">Create an account</CardTitle>
-					<CardDescription>Enter your details to get started</CardDescription>
+					<CardTitle className="text-2xl">Crea un account</CardTitle>
+					<CardDescription>Inserisci i tuoi dati per iniziare</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<RegisterForm />

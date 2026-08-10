@@ -1,0 +1,26 @@
+name: Purge stale activity raw data
+
+# GDPR retention job: calls GET /api/cron/purge-raw-data every night so that
+# Activity.rawJson (GPS, heart rate, power — Art. 9 special category data)
+# is nullified after PURGE_AFTER_DAYS, as documented in docs/gdpr-compliance-audit.md.
+#
+# Required repository secrets:
+#   APP_BASE_URL — base URL of the deployed app, e.g. https://app.dromos.example
+#   CRON_SECRET  — must match the CRON_SECRET env var configured on the server
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # 03:00 UTC every night
+  workflow_dispatch: {}
+
+permissions: {}
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call purge endpoint
+        run: |
+          curl --fail-with-body -sS --max-time 60 \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_BASE_URL }}/api/cron/purge-raw-data"
