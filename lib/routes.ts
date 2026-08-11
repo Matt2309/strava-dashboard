@@ -12,6 +12,9 @@ export type RouteName =
 	| "privacy-settings"
 	| "account-settings"
 	| "engine-room"
+	| "plan-create"
+	| "plan-edit"
+	| "plan-detail"
 	| "workout"
 	| "workout-summary"
 	| "not-found";
@@ -90,6 +93,26 @@ export const ROUTES = {
 	"engine-room": {
 		path: "/engine-room",
 		access: RouteAccess.PRIVATE,
+	},
+	// Declared BEFORE "plan-detail": proxy.ts picks the FIRST ROUTES entry
+	// whose path-to-regexp pattern matches, and "/engine-room/:planId" would
+	// otherwise also match "/engine-room/create" (both are 2 segments, and
+	// ":planId" matches any literal segment including "create"). Both are
+	// PRIVATE today so the access decision happens to be identical either
+	// way — but the ordering is load-bearing the moment the two diverge.
+	"plan-create": {
+		path: "/engine-room/create",
+		access: RouteAccess.PRIVATE,
+	},
+	"plan-edit": {
+		path: "/engine-room/:planId/edit",
+		access: RouteAccess.PRIVATE,
+		build: (planId: string) => `/engine-room/${planId}/edit`,
+	},
+	"plan-detail": {
+		path: "/engine-room/:planId",
+		access: RouteAccess.PRIVATE,
+		build: (planId: string) => `/engine-room/${planId}`,
 	},
 	workout: {
 		path: "/engine-room/workout/:dayId",

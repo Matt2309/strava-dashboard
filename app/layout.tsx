@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { GoogleTagManager } from "@next/third-parties/google";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { NavigationHistoryTracker } from "@/components/providers/navigation-history-tracker";
 import { TanstackProvider } from "@/components/providers/tanstack-wrapper";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -55,6 +56,7 @@ export default function RootLayout({
 					disableTransitionOnChange
 				>
 					<ErrorBoundary>
+						<NavigationHistoryTracker />
 						<div className="flex fixed top-4 right-4 z-50">
 							<ThemeToggle />
 						</div>

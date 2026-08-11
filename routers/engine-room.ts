@@ -5,11 +5,13 @@ import { auth } from "@/lib/auth";
 import {
 	completeSetSchema,
 	createPlanSchema,
+	deletePlanSchema,
 	endWorkoutSchema,
 	getExercisesSchema,
 	getSessionSchema,
 	getWorkoutDaySchema,
 	swapExerciseSchema,
+	updatePlanSchema,
 } from "@/lib/schemas/engine-room.schema";
 import { errorHandlerMiddleware } from "@/routers/middlewares/error-handler";
 import { engineRoomService } from "@/server/services/engine-room.service";
@@ -44,6 +46,24 @@ export const createPlan = os
 	.handler(async ({ input }) => {
 		const userId = await getUserIdFromSession();
 		return await engineRoomService.createPlan(userId, input);
+	})
+	.use(errorHandlerMiddleware)
+	.callable();
+
+export const updatePlan = os
+	.input(updatePlanSchema)
+	.handler(async ({ input }) => {
+		const userId = await getUserIdFromSession();
+		return await engineRoomService.updatePlan(userId, input);
+	})
+	.use(errorHandlerMiddleware)
+	.callable();
+
+export const deletePlan = os
+	.input(deletePlanSchema)
+	.handler(async ({ input }) => {
+		const userId = await getUserIdFromSession();
+		return await engineRoomService.deletePlan(userId, input.planId);
 	})
 	.use(errorHandlerMiddleware)
 	.callable();
@@ -129,6 +149,8 @@ export const engineRoomRouter = os.router({
 	getPlans,
 	getPlanDetails,
 	createPlan,
+	updatePlan,
+	deletePlan,
 	getWorkoutDay,
 	startWorkout,
 	completeSet,

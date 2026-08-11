@@ -1,11 +1,6 @@
 import { BackButton } from "@/components/buttons/back-button";
 import { RedirectButton } from "@/components/buttons/redirect-button";
-import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMovingTime } from "@/lib";
 import { ROUTES } from "@/lib/routes";
 import { getSession } from "@/routers/engine-room";
@@ -44,7 +39,13 @@ export default async function SessionSummaryPage({
 
 	return (
 		<div className="space-y-8 p-6">
-			<BackButton />
+			<BackButton
+				fallback={
+					session.day?.plan
+						? ROUTES["plan-detail"].build(session.day.plan.id)
+						: ROUTES["engine-room"].path
+				}
+			/>
 
 			<div className="space-y-2">
 				<p className="text-xs font-bold tracking-widest text-muted-foreground uppercase">
@@ -141,7 +142,7 @@ export default async function SessionSummaryPage({
 			<div className="flex gap-3">
 				{session.day?.plan && (
 					<RedirectButton
-						url={`/engine-room/${session.day.plan.id}`}
+						url={ROUTES["plan-detail"].build(session.day.plan.id)}
 						text="BACK TO PLAN"
 						variant="outline"
 					/>

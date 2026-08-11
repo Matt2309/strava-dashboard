@@ -1,18 +1,23 @@
 import { Dumbbell, Plus, Trash2 } from "lucide-react";
-import { type Control, Controller, useFieldArray } from "react-hook-form";
+import {
+	type Control,
+	Controller,
+	useFieldArray,
+	useWatch,
+} from "react-hook-form";
 
 import ExerciseSelect from "@/components/forms/create-plan/exercise-select";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { CreatePlanFormInput } from "@/lib/schemas/engine-room.schema";
+import type { PlanFormInput } from "@/lib/schemas/engine-room.schema";
 
 export default function DayContent({
 	control,
 	dayIndex,
 	dayName,
 }: {
-	control: Control<CreatePlanFormInput, any>;
+	control: Control<PlanFormInput, any>;
 	dayIndex: number;
 	dayName: string;
 }) {
@@ -56,210 +61,13 @@ export default function DayContent({
 				)}
 
 				{exerciseFields.map((exercise, exerciseIndex) => (
-					<div
+					<ExerciseRow
 						key={exercise.id}
-						className="space-y-3 border border-border rounded-lg bg-card p-4"
-					>
-						{/* Row 1: Exercise Name, Sets, Reps, Recovery, Trash */}
-						<div className="grid grid-cols-12 gap-3 items-end">
-							{/* Exercise Name */}
-							<div className="col-span-5">
-								<Controller
-									name={`days.${dayIndex}.exercises.${exerciseIndex}.exerciseId`}
-									control={control}
-									render={({ field, fieldState }) => (
-										<ExerciseSelect
-											value={field.value}
-											onChange={field.onChange}
-											onBlur={field.onBlur}
-											invalid={fieldState.invalid}
-											error={fieldState.error}
-										/>
-									)}
-								/>
-							</div>
-
-							{/* Sets */}
-							<div className="col-span-2">
-								<Controller
-									name={`days.${dayIndex}.exercises.${exerciseIndex}.sets`}
-									control={control}
-									render={({ field, fieldState }) => (
-										<Field data-invalid={fieldState.invalid}>
-											<FieldLabel className="text-xs">SETS</FieldLabel>
-											<Input
-												{...field}
-												value={field.value as string | number | undefined}
-												type="number"
-												min={1}
-												placeholder="4"
-												className="bg-input text-foreground border-border"
-												aria-invalid={fieldState.invalid}
-											/>
-											{fieldState.invalid && (
-												<FieldError errors={[fieldState.error]} />
-											)}
-										</Field>
-									)}
-								/>
-							</div>
-
-							{/* Reps */}
-							<div className="col-span-2">
-								<Controller
-									name={`days.${dayIndex}.exercises.${exerciseIndex}.targetReps`}
-									control={control}
-									render={({ field, fieldState }) => (
-										<Field data-invalid={fieldState.invalid}>
-											<FieldLabel className="text-xs">REPS</FieldLabel>
-											<Input
-												{...field}
-												placeholder="6-8"
-												className="bg-input text-foreground border-border"
-												aria-invalid={fieldState.invalid}
-											/>
-											{fieldState.invalid && (
-												<FieldError errors={[fieldState.error]} />
-											)}
-										</Field>
-									)}
-								/>
-							</div>
-
-							{/* Recovery */}
-							<div className="col-span-2">
-								<Controller
-									name={`days.${dayIndex}.exercises.${exerciseIndex}.restTime`}
-									control={control}
-									render={({ field, fieldState }) => (
-										<Field data-invalid={fieldState.invalid}>
-											<FieldLabel className="text-xs">RECOVERY</FieldLabel>
-											<Input
-												{...field}
-												value={field.value as string | number | undefined}
-												type="number"
-												placeholder="3:00"
-												className="bg-input text-foreground border-border"
-												aria-invalid={fieldState.invalid}
-											/>
-											{fieldState.invalid && (
-												<FieldError errors={[fieldState.error]} />
-											)}
-										</Field>
-									)}
-								/>
-							</div>
-
-							{/* Trash Icon */}
-							<div className="col-span-1 flex justify-end pb-2">
-								<button
-									type="button"
-									onClick={() => removeExercise(exerciseIndex)}
-									className="p-2 rounded-md bg-muted text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors"
-								>
-									<Trash2 className="w-4 h-4" />
-								</button>
-							</div>
-						</div>
-
-						{/* Row 2: Program Notes, My Setup Notes */}
-						<div className="grid grid-cols-2 gap-3">
-							{/* Program Notes */}
-							<Controller
-								name={`days.${dayIndex}.exercises.${exerciseIndex}.coachNotes`}
-								control={control}
-								render={({ field, fieldState }) => (
-									<Field data-invalid={fieldState.invalid}>
-										<FieldLabel className="text-xs flex items-center gap-2">
-											📋 PROGRAM NOTES
-										</FieldLabel>
-										<Textarea
-											{...field}
-											placeholder="Focus on keeping lats engaged throughout the entire pull."
-											rows={3}
-											className="bg-input text-foreground border-border resize-none"
-											aria-invalid={fieldState.invalid}
-										/>
-										{fieldState.invalid && (
-											<FieldError errors={[fieldState.error]} />
-										)}
-									</Field>
-								)}
-							/>
-
-							{/* My Setup Notes */}
-							<Controller
-								name={`days.${dayIndex}.exercises.${exerciseIndex}.personalNotes`}
-								control={control}
-								render={({ field, fieldState }) => (
-									<Field data-invalid={fieldState.invalid}>
-										<FieldLabel className="text-xs flex items-center gap-2">
-											👤 MY SETUP NOTES
-										</FieldLabel>
-										<Textarea
-											{...field}
-											placeholder="Use 2-inch riser blocks. Belt at notch 4."
-											rows={3}
-											className="bg-input text-foreground border-border resize-none"
-											aria-invalid={fieldState.invalid}
-										/>
-										{fieldState.invalid && (
-											<FieldError errors={[fieldState.error]} />
-										)}
-									</Field>
-								)}
-							/>
-						</div>
-
-						{/* Row 3: Equipment settings */}
-						<div className="grid grid-cols-2 gap-3">
-							{/* Equipment 1 */}
-							<Controller
-								name={`days.${dayIndex}.exercises.${exerciseIndex}.equipmentSetting1`}
-								control={control}
-								render={({ field, fieldState }) => (
-									<Field data-invalid={fieldState.invalid}>
-										<FieldLabel className="text-xs flex items-center gap-2">
-											<Dumbbell size={"20px"} /> EQUIPMENT SETTINGS 1
-										</FieldLabel>
-										<Textarea
-											{...field}
-											placeholder="Inclination 45 degrees."
-											rows={3}
-											className="bg-input text-foreground border-border resize-none"
-											aria-invalid={fieldState.invalid}
-										/>
-										{fieldState.invalid && (
-											<FieldError errors={[fieldState.error]} />
-										)}
-									</Field>
-								)}
-							/>
-
-							{/* Equipment 2 */}
-							<Controller
-								name={`days.${dayIndex}.exercises.${exerciseIndex}.equipmentSetting2`}
-								control={control}
-								render={({ field, fieldState }) => (
-									<Field data-invalid={fieldState.invalid}>
-										<FieldLabel className="text-xs flex items-center gap-2">
-											<Dumbbell size={"20px"} /> EQUIPMENT SETTINGS 2
-										</FieldLabel>
-										<Textarea
-											{...field}
-											placeholder="Bench seat at snap 2."
-											rows={3}
-											className="bg-input text-foreground border-border resize-none"
-											aria-invalid={fieldState.invalid}
-										/>
-										{fieldState.invalid && (
-											<FieldError errors={[fieldState.error]} />
-										)}
-									</Field>
-								)}
-							/>
-						</div>
-					</div>
+						control={control}
+						dayIndex={dayIndex}
+						exerciseIndex={exerciseIndex}
+						onRemove={() => removeExercise(exerciseIndex)}
+					/>
 				))}
 
 				{/* Add Exercise Button */}
@@ -291,6 +99,250 @@ export default function DayContent({
 					</Field>
 				)}
 			/>
+		</div>
+	);
+}
+
+interface ExerciseRowProps {
+	control: Control<PlanFormInput, any>;
+	dayIndex: number;
+	exerciseIndex: number;
+	onRemove: () => void;
+}
+
+function ExerciseRow({
+	control,
+	dayIndex,
+	exerciseIndex,
+	onRemove,
+}: ExerciseRowProps) {
+	// A pyramid scheme (per-set reps/rpe/weight that differ) can't be edited
+	// through the SETS/REPS inputs below without flattening it — see
+	// planFormSchema's `repsOverride` comment. Watch it so those two inputs
+	// can be disabled instead of silently destroying the scheme on save.
+	const repsOverride = useWatch({
+		control,
+		name: `days.${dayIndex}.exercises.${exerciseIndex}.repsOverride`,
+	});
+	const hasOverride = !!repsOverride?.length;
+
+	return (
+		<div className="space-y-3 border border-border rounded-lg bg-card p-4">
+			{hasOverride && (
+				<div className="flex items-center justify-between gap-3 rounded-md border border-dashed border-border bg-muted/40 p-2 text-xs">
+					<span className="font-semibold uppercase tracking-widest text-muted-foreground">
+						Per-set scheme ({repsOverride?.length} sets) — Sets/Reps are locked
+						to avoid losing it
+					</span>
+					<Controller
+						name={`days.${dayIndex}.exercises.${exerciseIndex}.repsOverride`}
+						control={control}
+						render={({ field }) => (
+							<button
+								type="button"
+								onClick={() => field.onChange(undefined)}
+								className="shrink-0 rounded-md border border-border px-2 py-1 font-semibold hover:bg-muted"
+							>
+								Convert to uniform sets
+							</button>
+						)}
+					/>
+				</div>
+			)}
+
+			{/* Row 1: Exercise Name, Sets, Reps, Recovery, Trash */}
+			<div className="grid grid-cols-12 gap-3 items-end">
+				{/* Exercise Name */}
+				<div className="col-span-5">
+					<Controller
+						name={`days.${dayIndex}.exercises.${exerciseIndex}.exerciseId`}
+						control={control}
+						render={({ field, fieldState }) => (
+							<ExerciseSelect
+								value={field.value}
+								onChange={field.onChange}
+								onBlur={field.onBlur}
+								invalid={fieldState.invalid}
+								error={fieldState.error}
+							/>
+						)}
+					/>
+				</div>
+
+				{/* Sets */}
+				<div className="col-span-2">
+					<Controller
+						name={`days.${dayIndex}.exercises.${exerciseIndex}.sets`}
+						control={control}
+						render={({ field, fieldState }) => (
+							<Field data-invalid={fieldState.invalid}>
+								<FieldLabel className="text-xs">SETS</FieldLabel>
+								<Input
+									{...field}
+									value={field.value as string | number | undefined}
+									type="number"
+									min={1}
+									placeholder="4"
+									disabled={hasOverride}
+									className="bg-input text-foreground border-border"
+									aria-invalid={fieldState.invalid}
+								/>
+								{fieldState.invalid && (
+									<FieldError errors={[fieldState.error]} />
+								)}
+							</Field>
+						)}
+					/>
+				</div>
+
+				{/* Reps */}
+				<div className="col-span-2">
+					<Controller
+						name={`days.${dayIndex}.exercises.${exerciseIndex}.targetReps`}
+						control={control}
+						render={({ field, fieldState }) => (
+							<Field data-invalid={fieldState.invalid}>
+								<FieldLabel className="text-xs">REPS</FieldLabel>
+								<Input
+									{...field}
+									placeholder="6-8"
+									disabled={hasOverride}
+									className="bg-input text-foreground border-border"
+									aria-invalid={fieldState.invalid}
+								/>
+								{fieldState.invalid && (
+									<FieldError errors={[fieldState.error]} />
+								)}
+							</Field>
+						)}
+					/>
+				</div>
+
+				{/* Recovery */}
+				<div className="col-span-2">
+					<Controller
+						name={`days.${dayIndex}.exercises.${exerciseIndex}.restTime`}
+						control={control}
+						render={({ field, fieldState }) => (
+							<Field data-invalid={fieldState.invalid}>
+								<FieldLabel className="text-xs">RECOVERY</FieldLabel>
+								<Input
+									{...field}
+									value={field.value as string | number | undefined}
+									type="number"
+									placeholder="3:00"
+									className="bg-input text-foreground border-border"
+									aria-invalid={fieldState.invalid}
+								/>
+								{fieldState.invalid && (
+									<FieldError errors={[fieldState.error]} />
+								)}
+							</Field>
+						)}
+					/>
+				</div>
+
+				{/* Trash Icon */}
+				<div className="col-span-1 flex justify-end pb-2">
+					<button
+						type="button"
+						onClick={onRemove}
+						className="p-2 rounded-md bg-muted text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors"
+					>
+						<Trash2 className="w-4 h-4" />
+					</button>
+				</div>
+			</div>
+
+			{/* Row 2: Program Notes, My Setup Notes */}
+			<div className="grid grid-cols-2 gap-3">
+				{/* Program Notes */}
+				<Controller
+					name={`days.${dayIndex}.exercises.${exerciseIndex}.coachNotes`}
+					control={control}
+					render={({ field, fieldState }) => (
+						<Field data-invalid={fieldState.invalid}>
+							<FieldLabel className="text-xs flex items-center gap-2">
+								📋 PROGRAM NOTES
+							</FieldLabel>
+							<Textarea
+								{...field}
+								placeholder="Focus on keeping lats engaged throughout the entire pull."
+								rows={3}
+								className="bg-input text-foreground border-border resize-none"
+								aria-invalid={fieldState.invalid}
+							/>
+							{fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+						</Field>
+					)}
+				/>
+
+				{/* My Setup Notes */}
+				<Controller
+					name={`days.${dayIndex}.exercises.${exerciseIndex}.personalNotes`}
+					control={control}
+					render={({ field, fieldState }) => (
+						<Field data-invalid={fieldState.invalid}>
+							<FieldLabel className="text-xs flex items-center gap-2">
+								👤 MY SETUP NOTES
+							</FieldLabel>
+							<Textarea
+								{...field}
+								placeholder="Use 2-inch riser blocks. Belt at notch 4."
+								rows={3}
+								className="bg-input text-foreground border-border resize-none"
+								aria-invalid={fieldState.invalid}
+							/>
+							{fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+						</Field>
+					)}
+				/>
+			</div>
+
+			{/* Row 3: Equipment settings */}
+			<div className="grid grid-cols-2 gap-3">
+				{/* Equipment 1 */}
+				<Controller
+					name={`days.${dayIndex}.exercises.${exerciseIndex}.equipmentSetting1`}
+					control={control}
+					render={({ field, fieldState }) => (
+						<Field data-invalid={fieldState.invalid}>
+							<FieldLabel className="text-xs flex items-center gap-2">
+								<Dumbbell size={"20px"} /> EQUIPMENT SETTINGS 1
+							</FieldLabel>
+							<Textarea
+								{...field}
+								placeholder="Inclination 45 degrees."
+								rows={3}
+								className="bg-input text-foreground border-border resize-none"
+								aria-invalid={fieldState.invalid}
+							/>
+							{fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+						</Field>
+					)}
+				/>
+
+				{/* Equipment 2 */}
+				<Controller
+					name={`days.${dayIndex}.exercises.${exerciseIndex}.equipmentSetting2`}
+					control={control}
+					render={({ field, fieldState }) => (
+						<Field data-invalid={fieldState.invalid}>
+							<FieldLabel className="text-xs flex items-center gap-2">
+								<Dumbbell size={"20px"} /> EQUIPMENT SETTINGS 2
+							</FieldLabel>
+							<Textarea
+								{...field}
+								placeholder="Bench seat at snap 2."
+								rows={3}
+								className="bg-input text-foreground border-border resize-none"
+								aria-invalid={fieldState.invalid}
+							/>
+							{fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+						</Field>
+					)}
+				/>
+			</div>
 		</div>
 	);
 }

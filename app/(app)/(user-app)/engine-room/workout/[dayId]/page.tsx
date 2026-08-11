@@ -16,6 +16,7 @@ import {
 	useStartWorkout,
 	useSwapExercise,
 } from "@/hooks/use-engine-room";
+import { useBackNavigation } from "@/hooks/use-navigation-history";
 import { parseTargetReps } from "@/lib";
 import type { RouterType } from "@/lib/orpc/client";
 import { ROUTES } from "@/lib/routes";
@@ -29,6 +30,10 @@ export default function WorkoutModePage() {
 	const router = useRouter();
 	const params = useParams();
 	const dayId = params.dayId as string;
+	// getWorkoutDay doesn't expose the parent planId, so the fallback (used
+	// when there's no real "back" entry, e.g. a direct/bookmarked visit)
+	// lands on the plan list rather than the specific plan.
+	const goBack = useBackNavigation(ROUTES["engine-room"].path);
 
 	const [sessionId, setSessionId] = useState<string | null>(null);
 	const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
@@ -243,7 +248,7 @@ export default function WorkoutModePage() {
 		<div className="min-h-screen bg-neutral-950 text-white pb-20">
 			{/* Header */}
 			<div className="sticky top-0 z-10 bg-neutral-900 px-6 py-4 flex items-center justify-between">
-				<Button onClick={() => router.back()} variant="ghost" size="sm">
+				<Button onClick={goBack} variant="ghost" size="sm">
 					<ArrowLeft className="w-4 h-4" />
 				</Button>
 				<h1 className="font-black tracking-tighter">DROMOS</h1>

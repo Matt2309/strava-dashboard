@@ -23,8 +23,9 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useExportToToon, useGetActivity } from "@/hooks/use-strava";
+import { ROUTES } from "@/lib/routes";
 import { calculatePace, formatDate, formatMovingTime } from "@/lib/utils";
-import {BackButton} from "@/components/buttons/back-button";
+import { BackButton } from "@/components/buttons/back-button";
 
 export default function ActivityPage() {
 	const params = useParams();
@@ -124,7 +125,7 @@ export default function ActivityPage() {
 		<div className="p-4">
 			<header className="flex items-center justify-between mb-4">
                 <div className={"flex items-center gap-4"}>
-                    <BackButton />
+                    <BackButton fallback={ROUTES.garage.path} />
                     <h1 className="text-2xl font-bold">Activity Details</h1>
                 </div>
 				<Button onClick={handleExport} disabled={exportToToon.isPending}>

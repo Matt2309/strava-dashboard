@@ -1,5 +1,8 @@
+import { notFound } from "next/navigation";
 import { BackButton } from "@/components/buttons/back-button";
-import { DaySection } from "@/components/engine-room/plan-resume";
+import { DayTabs, PlanHeaderCard } from "@/components/engine-room/plan-detail";
+import { SiteHeader } from "@/components/sidebar/site-header";
+import { ROUTES } from "@/lib/routes";
 import { getPlanDetails } from "@/routers/engine-room";
 
 interface PlanPreviewPageProps {
@@ -9,41 +12,32 @@ interface PlanPreviewPageProps {
 export default async function PlanPreviewPage({
 	params,
 }: PlanPreviewPageProps) {
-	const resolvedParams = await params;
-	const planId = resolvedParams.planId;
+	const { planId } = await params;
 
-	const plan = await getPlanDetails({ planId });
+	// getPlanDetails throws on a bad/unowned planId (no dedicated error type),
+	// and there is no app/error.tsx to catch it — surface a proper 404 instead
+	// of a raw framework error.
+	const plan = await getPlanDetails({ planId }).catch(() => null);
+	if (!plan) {
+		notFound();
+	}
 
 	return (
-		<div className="space-y-8 p-6">
-			<BackButton />
+		<>
+			<SiteHeader title="Engine room" />
+			<div className="space-y-6 p-6">
+				<BackButton fallback={ROUTES["engine-room"].path} />
 
-			{/* Header */}
-			<div className="space-y-2">
-				<h1 className="text-4xl font-black">{plan?.name}</h1>
-				<div className="flex items-center gap-4 text-sm text-muted-foreground">
-					<span>
-						Type: <strong>{plan?.type}</strong>
-					</span>
-					{plan?.expiryDate && (
-						<span>
-							Expires:{" "}
-							<strong>{new Date(plan.expiryDate).toLocaleDateString()}</strong>
-						</span>
-					)}
-				</div>
-			</div>
+				<PlanHeaderCard plan={plan} />
 
-			{/* Days List */}
-			<div className="space-y-6">
-				{plan?.days && plan.days.length > 0 ? (
-					plan.days.map((day) => <DaySection key={day.id} day={day} />)
+				{plan.days.length > 0 ? (
+					<DayTabs days={plan.days} />
 				) : (
 					<div className="py-12 text-center">
 						<p className="text-muted-foreground">No workout days configured</p>
 					</div>
 				)}
 			</div>
-		</div>
+		</>
 	);
 }

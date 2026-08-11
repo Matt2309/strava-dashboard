@@ -3,6 +3,7 @@ import type {
 	CreatePlanOutput,
 	EndWorkoutInput,
 	SwapExerciseInput,
+	UpdatePlanOutput,
 } from "@/lib/schemas/engine-room.schema";
 import { exerciseRepository } from "@/server/repositories/exercise.repository";
 import { workoutPlanRepository } from "@/server/repositories/workout-plan.repository";
@@ -23,6 +24,25 @@ export class EngineRoomService {
 
 	async createPlan(userId: string, data: CreatePlanOutput) {
 		return workoutPlanRepository.createPlan(userId, data);
+	}
+
+	async updatePlan(userId: string, data: UpdatePlanOutput) {
+		// No pre-check here: ownership (and the day/exercise id-tampering
+		// guard) is verified inside the repository's transaction, against the
+		// same snapshot the diff is computed from. A pre-check here would just
+		// be a TOCTOU window, not extra safety.
+		return workoutPlanRepository.updatePlan(data.planId, userId, data);
+	}
+
+	async deletePlan(userId: string, planId: string) {
+		const result = await workoutPlanRepository.deletePlan(planId, userId);
+		// deleteMany silently reports count 0 for someone else's plan instead
+		// of throwing; normalize that into the same error every other method
+		// here throws on an ownership mismatch.
+		if (result.count === 0) {
+			throw new Error("Plan not found or unauthorized");
+		}
+		return { success: true };
 	}
 
 	async getWorkoutDay(userId: string, dayId: string) {

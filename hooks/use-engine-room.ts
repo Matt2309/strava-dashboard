@@ -30,6 +30,24 @@ export const useCreatePlan = () => {
 	});
 };
 
+// --- updatePlan ---
+const updatePlanProcedure = orpcClient.engineRoom.updatePlan;
+export const useUpdatePlan = () => {
+	return useMutation({
+		mutationFn: (input: Parameters<typeof updatePlanProcedure.call>[0]) =>
+			updatePlanProcedure.call(input),
+	});
+};
+
+// --- deletePlan ---
+const deletePlanProcedure = orpcClient.engineRoom.deletePlan;
+export const useDeletePlan = () => {
+	return useMutation({
+		mutationFn: (input: Parameters<typeof deletePlanProcedure.call>[0]) =>
+			deletePlanProcedure.call(input),
+	});
+};
+
 // --- getWorkoutDay ---
 const getWorkoutDayProcedure = orpcClient.engineRoom.getWorkoutDay;
 export const useGetWorkoutDay = (

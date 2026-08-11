@@ -72,6 +72,18 @@ export function formatDate(dateString: string): string {
 }
 
 /**
+ * Formats a rest-time duration (stored in seconds) for display, e.g.
+ * `90` -> "1m 30s", `45` -> "45s". Returns "N/A" when unset.
+ */
+export function formatRestTime(seconds: number | null | undefined): string {
+	if (!seconds) return "N/A";
+	if (seconds < 60) return `${seconds}s`;
+	const minutes = Math.floor(seconds / 60);
+	const secs = seconds % 60;
+	return secs > 0 ? `${minutes}m ${secs}s` : `${minutes}m`;
+}
+
+/**
  * Parses a free-form target-reps string (e.g. "8", "6-8", "MAX", "AMRAP")
  * into a starting number to prefill the reps input during a workout.
  * Ranges resolve to their lower bound; anything non-numeric ("MAX") falls
